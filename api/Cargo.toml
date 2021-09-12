@@ -1,0 +1,16 @@
+[package]
+name = "beancount"
+version = "0.1.0"
+edition = "2018"
+
+[dependencies]
+vercel_lambda = "*"
+http = "0.1"
+
+[lib]
+name = "beancount"
+path = "beancount.rs"
+
+[[bin]]
+name = "beancount"
+path = "/home/liangliu/github/beancount-automation/api/beancount.rs"
