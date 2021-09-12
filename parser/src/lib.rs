@@ -23,7 +23,7 @@ pub fn parse(input: &str) -> Result<Transaction, String> {
     let mut payee_vec: Vec<&str> = vec![];
     let mut amount_vec: Vec<f32> = vec![];
     let mut currency_vec: Vec<&str> = vec![];
-    let mut accounts_vec: Vec<&str> = vec![];
+    let mut others_vec: Vec<&str> = vec![];
 
     let split: Vec<&str> = input.split(' ').collect();
 
@@ -52,7 +52,7 @@ pub fn parse(input: &str) -> Result<Transaction, String> {
             continue;
         }
 
-        accounts_vec.push(value);
+        others_vec.push(value);
     }
 
     let date = match date_vec.first() {
@@ -70,23 +70,21 @@ pub fn parse(input: &str) -> Result<Transaction, String> {
         None => 0.0,
     };
 
-    println!("accounts_vec {:?}", accounts_vec);
-
-    let right_arrow_index = accounts_vec
+    let right_arrow_index = others_vec
         .iter()
         .position(|r| *r == ">")
         .expect("No > provided");
 
-    let from_account = String::from(accounts_vec[right_arrow_index - 1]);
-    let to_account = String::from(accounts_vec[right_arrow_index + 1]);
+    let from_account = String::from(others_vec[right_arrow_index - 1]);
+    let to_account = String::from(others_vec[right_arrow_index + 1]);
     for _ in 0..3 {
-        accounts_vec.remove(right_arrow_index - 1);
+        others_vec.remove(right_arrow_index - 1);
     }
 
     return Ok(Transaction {
         date,
         payee,
-        narration: accounts_vec.join(" "),
+        narration: others_vec.join(" "),
         amount,
         currency: String::from("AUD"),
         from_account,
