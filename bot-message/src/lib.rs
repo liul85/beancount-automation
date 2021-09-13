@@ -1,4 +1,4 @@
-mod telegram;
+pub mod telegram;
 
 #[cfg(test)]
 mod tests {

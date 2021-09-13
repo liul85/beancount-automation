@@ -80,10 +80,12 @@ dependencies = [
 name = "beancount"
 version = "0.1.0"
 dependencies = [
+ "bot_message",
  "env_logger",
  "http",
  "log",
  "parser",
+ "serde_json",
  "vercel_lambda",
 ]
 
@@ -92,6 +94,14 @@ name = "bitflags"
 version = "1.3.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "bef38d45163c2f1dde094a7dfd33ccf595c92905c8f8f4fdc18d06fb1037718a"
+
+[[package]]
+name = "bot_message"
+version = "0.1.0"
+dependencies = [
+ "serde",
+ "serde_json",
+]
 
 [[package]]
 name = "byteorder"
@@ -810,6 +820,9 @@ name = "serde"
 version = "1.0.130"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "f12d06de37cf59146fbdecab66aa99f9fe4f78722e3607577a5375d66bd0c913"
+dependencies = [
+ "serde_derive",
+]
 
 [[package]]
 name = "serde_derive"

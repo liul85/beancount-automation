@@ -3,7 +3,7 @@ use serde::{Deserialize, Serialize};
 #[derive(Serialize, Deserialize, Debug)]
 pub struct Update {
     update_id: u64,
-    message: Message,
+    pub message: Message,
 }
 
 #[derive(Serialize, Deserialize, Debug)]
@@ -12,7 +12,7 @@ pub struct Message {
     from: User,
     chat: Chat,
     date: u64,
-    text: String,
+    pub text: String,
 }
 
 #[derive(Serialize, Deserialize, Debug)]

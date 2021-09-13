@@ -1,3 +1,4 @@
+use bot_message::telegram::Update;
 use http::StatusCode;
 use log::info;
 use parser::parse;
@@ -13,7 +14,9 @@ fn handler(request: Request) -> Result<impl IntoResponse, VercelError> {
     let body = String::from_utf8_lossy(request.body());
     info!("request body is {}", body);
 
-    let transaction = parse(&body).unwrap();
+    let update: Update = serde_json::from_str(&body).unwrap();
+
+    let transaction = parse(&update.message.text).unwrap();
     info!("parsed transaction is {:?}", transaction);
 
     let response = Response::builder()
