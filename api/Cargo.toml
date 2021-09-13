@@ -8,11 +8,8 @@ vercel_lambda = "*"
 http = "0.1"
 log = "0.4"
 env_logger = "0.9.0"
+parser = {version = "0.1.0", path = "../parser"}
 
 [lib]
 name = "beancount"
 path = "beancount.rs"
-
-[[bin]]
-name = "beancount"
-path = "/home/liangliu/github/beancount-automation/api/beancount.rs"

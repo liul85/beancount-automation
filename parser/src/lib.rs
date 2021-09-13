@@ -8,6 +8,7 @@ lazy_static! {
     static ref CURRENCY_RE: Regex = Regex::new("^[A-Z]{3}$").unwrap();
 }
 
+#[derive(Debug)]
 pub struct Transaction {
     date: String,
     payee: String,
@@ -28,7 +29,6 @@ pub fn parse(input: &str) -> Result<Transaction, String> {
     let split: Vec<&str> = input.split(' ').collect();
 
     for value in &split {
-        println!("{}", value);
         if DATE_RE.is_match(value) {
             date_vec.push(value);
             continue;

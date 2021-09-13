@@ -1,5 +1,6 @@
 use http::StatusCode;
 use log::info;
+use parser::parse;
 use std::error::Error;
 use vercel_lambda::{error::VercelError, lambda, IntoResponse, Request, Response};
 
@@ -11,6 +12,9 @@ fn main() -> Result<(), Box<dyn Error>> {
 fn handler(request: Request) -> Result<impl IntoResponse, VercelError> {
     let body = String::from_utf8_lossy(request.body());
     info!("request body is {}", body);
+
+    let transaction = parse(&body).unwrap();
+    info!("parsed transaction is {:?}", transaction);
 
     let response = Response::builder()
         .status(StatusCode::OK)
