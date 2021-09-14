@@ -19,6 +19,23 @@ pub struct Transaction {
     to_account: String,
 }
 
+impl Transaction {
+    pub fn to_beancount(&self) -> String {
+        format!(
+            "{} * \"{}\" \"{}\"\n  {}        -{:.2} {}\n  {}        {:.2} {}\n",
+            self.date,
+            self.payee,
+            self.narration,
+            self.from_account,
+            self.amount,
+            self.currency,
+            self.to_account,
+            self.amount,
+            self.currency
+        )
+    }
+}
+
 pub fn parse(input: &str) -> Result<Transaction, String> {
     let mut date_vec: Vec<&str> = vec![];
     let mut payee_vec: Vec<&str> = vec![];
@@ -102,13 +119,7 @@ mod tests {
             parse("2021-09-08 @KFC hamburger 12.40 AUD Assets:MasterCard:CBA > Expense:Food");
         assert!(result.is_ok());
         let transaction = result.unwrap();
-        assert_eq!(transaction.date, "2021-09-08");
-        assert_eq!(transaction.payee, "KFC");
-        assert_eq!(transaction.narration, "hamburger");
-        assert_eq!(transaction.amount, 12.40);
-        assert_eq!(transaction.currency, "AUD");
-        assert_eq!(transaction.from_account, "Assets:MasterCard:CBA");
-        assert_eq!(transaction.to_account, "Expense:Food");
+        assert_eq!(transaction.to_beancount(), "2021-09-08 * \"KFC\" \"hamburger\"\n  Assets:MasterCard:CBA        -12.40 AUD\n  Expense:Food        12.40 AUD\n");
     }
 
     #[test]
@@ -116,7 +127,7 @@ mod tests {
         let result = parse("@KFC hamburger 12.40 AUD Assets:MasterCard:CBA > Expense:Food");
         assert!(result.is_ok());
         let transaction = result.unwrap();
-        assert!(DATE_RE.is_match(&transaction.date[..]));
+        assert!(DATE_RE.is_match(&transaction.date));
         assert_eq!(transaction.payee, "KFC");
         assert_eq!(transaction.narration, "hamburger");
         assert_eq!(transaction.amount, 12.40);
