@@ -1,7 +1,8 @@
 use bot_message::telegram::Update;
 use http::StatusCode;
-use log::info;
+use log::{error, info};
 use parser::parse;
+use repository::github_store::GithubStore;
 use std::error::Error;
 use vercel_lambda::{error::VercelError, lambda, IntoResponse, Request, Response};
 
@@ -19,10 +20,20 @@ fn handler(request: Request) -> Result<impl IntoResponse, VercelError> {
     let transaction = parse(&update.message.text).unwrap();
     info!("parsed transaction is {:?}", transaction);
 
-    let response = Response::builder()
-        .status(StatusCode::OK)
-        .header("Content-Type", "text/plain")
-        .body("API for beancount")
-        .expect("Internal Service Error");
-    Ok(response)
+    let store: GithubStore =
+        GithubStore::new().or_else(|_| Err(VercelError::new("Failed to create github store!")))?;
+    let result = store.save(transaction.to_beancount());
+    match result {
+        Ok(_) => {
+            info!("Successfully saved transaction!");
+            Ok(Response::builder()
+                .status(StatusCode::OK)
+                .header("Content-Type", "text/plain")
+                .body(transaction.to_beancount())?)
+        }
+        Err(e) => {
+            error!("Failed to save transaction: {}", e.to_string());
+            Err(VercelError::new(&e.to_string()))
+        }
+    }
 }
