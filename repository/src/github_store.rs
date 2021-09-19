@@ -1,7 +1,7 @@
 use base64::{decode, encode};
 use chrono::prelude::Local;
-use log::info;
-use reqwest::{blocking::Client, header};
+use log::{error, info};
+use reqwest::{blocking::Client, header, StatusCode};
 use serde::{Deserialize, Serialize};
 use std::env;
 use std::error::Error;
@@ -49,7 +49,7 @@ impl GithubStore {
     pub fn new() -> Result<Self, Box<dyn Error>> {
         let owner = env::var("GITHUB_OWNER")?;
         let repo = env::var("GITHUB_REPO")?;
-        let path = Local::now().format("%Y").to_string();
+        let path = format!("{}.bean", Local::now().format("%Y").to_string());
         let github_token = env::var("GITHUB_TOKEN")?;
 
         let mut headers = header::HeaderMap::new();
@@ -58,7 +58,7 @@ impl GithubStore {
             header::HeaderValue::from_static("application/vnd.github.v3+json"),
         );
 
-        let mut token = header::HeaderValue::from_str(&github_token)?;
+        let mut token = header::HeaderValue::from_str(&format!("token {}", github_token))?;
         token.set_sensitive(true);
         headers.insert(header::AUTHORIZATION, token);
 
@@ -81,6 +81,16 @@ impl GithubStore {
         );
 
         let content_response = self.client.get(&url).send()?;
+        match content_response.status() {
+            StatusCode::OK => (),
+            _ => {
+                error!("Failed to get file!");
+                error!("Response status was {}", content_response.status());
+                error!("Response body was {}", content_response.text()?);
+                return Err("Failed to get file content".into());
+            }
+        };
+
         let file_content: FileContent = content_response.json()?;
         let decoded_value = decode(&file_content.content.replace("\n", ""))?;
         let content = String::from_utf8_lossy(&decoded_value);
@@ -91,10 +101,26 @@ impl GithubStore {
             sha: file_content.sha,
         };
 
-        self.client
-            .put(&url)
-            .body(serde_json::to_string(&update_request).unwrap())
-            .send()?;
-        Ok(())
+        let body = serde_json::to_string(&update_request)?;
+        let rb = self.client.put(url).body(body);
+        let response = rb.send()?;
+        match response.status() {
+            StatusCode::OK | StatusCode::CREATED => {
+                info!(
+                    "Successfully created/updated file {} in repo {}.",
+                    self.path, self.repo
+                );
+                Ok(())
+            }
+            _ => {
+                error!("Failed to save transaction!");
+                error!(
+                    "github api response status code was [{}]",
+                    response.status()
+                );
+                error!("github api response body was {}", response.text()?);
+                Err("Failed to save transaction!".into())
+            }
+        }
     }
 }
