@@ -1,3 +1,4 @@
+use crate::Store;
 use base64::{decode, encode};
 use chrono::prelude::Local;
 use log::{error, info};
@@ -73,8 +74,10 @@ impl GithubStore {
             client,
         })
     }
+}
 
-    pub fn save(&self, update: String) -> Result<(), Box<dyn Error>> {
+impl Store for GithubStore {
+    fn save(&self, update: String) -> Result<(), Box<dyn Error>> {
         let url = format!(
             "https://api.github.com/repos/{}/{}/contents/{}",
             self.owner, self.repo, self.path
