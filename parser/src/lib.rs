@@ -1,6 +1,7 @@
 use chrono::prelude::Local;
 use lazy_static::lazy_static;
 use regex::Regex;
+use anyhow::Result;
 
 lazy_static! {
     static ref DATE_RE: Regex = Regex::new("^\\d{4}-\\d{2}-\\d{2}$").unwrap();
@@ -36,7 +37,7 @@ impl Transaction {
     }
 }
 
-pub fn parse(input: &str) -> Result<Transaction, String> {
+pub fn parse(input: &str) -> Result<Transaction> {
     let mut date_vec: Vec<&str> = vec![];
     let mut payee_vec: Vec<&str> = vec![];
     let mut amount_vec: Vec<f32> = vec![];

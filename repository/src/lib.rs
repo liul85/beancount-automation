@@ -1,7 +1,7 @@
-use std::error::Error;
+use anyhow::Result;
 
 pub mod github_store;
 
 pub trait Store {
-    fn save(&self, s: String) -> Result<(), Box<dyn Error>>;
+    fn save(&self, s: String) -> Result<()>;
 }

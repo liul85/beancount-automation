@@ -1,11 +1,11 @@
 use crate::Store;
+use anyhow::{anyhow, Result};
 use base64::{decode, encode};
 use chrono::prelude::Local;
 use log::{error, info};
 use reqwest::{blocking::Client, header, StatusCode};
 use serde::{Deserialize, Serialize};
 use std::env;
-use std::error::Error;
 
 pub struct GithubStore {
     owner: String,
@@ -47,7 +47,7 @@ struct UpdateRequest {
 }
 
 impl GithubStore {
-    pub fn new() -> Result<Self, Box<dyn Error>> {
+    pub fn new() -> Result<Self> {
         let owner = env::var("GITHUB_OWNER")?;
         let repo = env::var("GITHUB_REPO")?;
         let path = format!("{}.bean", Local::now().format("%Y").to_string());
@@ -77,7 +77,7 @@ impl GithubStore {
 }
 
 impl Store for GithubStore {
-    fn save(&self, update: String) -> Result<(), Box<dyn Error>> {
+    fn save(&self, update: String) -> Result<()> {
         let url = format!(
             "https://api.github.com/repos/{}/{}/contents/{}",
             self.owner, self.repo, self.path
@@ -90,7 +90,7 @@ impl Store for GithubStore {
                 error!("Failed to get file!");
                 error!("Response status was {}", content_response.status());
                 error!("Response body was {}", content_response.text()?);
-                return Err("Failed to get file content".into());
+                return Err(anyhow!("Failed to get file content"));
             }
         };
 
@@ -122,7 +122,7 @@ impl Store for GithubStore {
                     response.status()
                 );
                 error!("github api response body was {}", response.text()?);
-                Err("Failed to save transaction!".into())
+                Err(anyhow!("Failed to save transaction!"))
             }
         }
     }
