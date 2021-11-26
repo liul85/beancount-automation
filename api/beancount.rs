@@ -7,11 +7,13 @@ use repository::github_store::GithubStore;
 use repository::Store;
 use vercel_lambda::{error::VercelError, lambda, IntoResponse, Request, Response};
 
+#[allow(dead_code)]
 fn main() -> Result<()> {
     env_logger::init();
     Ok(lambda!(handler))
 }
 
+#[allow(dead_code)]
 fn handler(request: Request) -> Result<impl IntoResponse, VercelError> {
     let body = String::from_utf8_lossy(request.body());
     info!("request body is {}", body);
