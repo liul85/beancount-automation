@@ -1,5 +1,5 @@
 use anyhow::Result;
-use bot_message::telegram::Update;
+use bot_message::telegram::{ResponseBody, Update};
 use http::StatusCode;
 use log::{error, info};
 use parser::parse;
@@ -27,10 +27,17 @@ fn handler(request: Request) -> Result<impl IntoResponse, VercelError> {
     match result {
         Ok(_) => {
             info!("Successfully saved transaction!");
+            let response_body = ResponseBody {
+                method: "sendMessage".into(),
+                chat_id: update.message.chat.id,
+                text: transaction.into(),
+                reply_to_message_id: update.message.message_id,
+            };
+
             Ok(Response::builder()
                 .status(StatusCode::OK)
                 .header("Content-Type", "application/json")
-                .body(transaction.to_beancount())?)
+                .body(serde_json::to_string(&response_body).unwrap())?)
         }
         Err(e) => {
             error!("Failed to save transaction: {}", e.to_string());

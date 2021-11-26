@@ -8,9 +8,9 @@ pub struct Update {
 
 #[derive(Serialize, Deserialize, Debug)]
 pub struct Message {
-    message_id: u64,
+    pub message_id: u64,
     from: User,
-    chat: Chat,
+    pub chat: Chat,
     date: u64,
     pub text: String,
 }
@@ -26,12 +26,21 @@ pub struct User {
 
 #[derive(Serialize, Deserialize, Debug)]
 pub struct Chat {
-    id: u64,
+    pub id: u64,
     first_name: String,
     username: String,
     #[serde(rename = "type")]
     chat_type: String,
 }
+
+#[derive(Serialize, Debug)]
+pub struct ResponseBody {
+    pub method: String,
+    pub chat_id: u64,
+    pub text: String,
+    pub reply_to_message_id: u64,
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

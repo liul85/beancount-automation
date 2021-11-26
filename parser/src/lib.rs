@@ -1,7 +1,7 @@
+use anyhow::Result;
 use chrono::prelude::Local;
 use lazy_static::lazy_static;
 use regex::Regex;
-use anyhow::Result;
 
 lazy_static! {
     static ref DATE_RE: Regex = Regex::new("^\\d{4}-\\d{2}-\\d{2}$").unwrap();
@@ -33,6 +33,15 @@ impl Transaction {
             self.to_account,
             self.amount,
             self.currency
+        )
+    }
+}
+
+impl From<Transaction> for String {
+    fn from(transaction: Transaction) -> Self {
+        format!(
+            "✅\n==============================\n{}",
+            transaction.to_beancount()
         )
     }
 }
