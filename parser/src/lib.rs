@@ -1,3 +1,5 @@
+use std::collections::HashMap;
+
 use anyhow::Result;
 use chrono::prelude::Local;
 use lazy_static::lazy_static;
@@ -47,6 +49,12 @@ impl From<Transaction> for String {
 }
 
 pub fn parse(input: &str) -> Result<Transaction> {
+    let mut cfg = config::Config::default();
+    cfg.merge(config::File::with_name("config"))?;
+
+    let default_currency = cfg.get_str("currency")?;
+    let accounts = cfg.get::<HashMap<String, String>>("accounts")?;
+
     let mut date_vec: Vec<&str> = vec![];
     let mut payee_vec: Vec<&str> = vec![];
     let mut amount_vec: Vec<f32> = vec![];
@@ -55,7 +63,7 @@ pub fn parse(input: &str) -> Result<Transaction> {
 
     let split: Vec<&str> = input.split(' ').collect();
 
-    for value in &split {
+    for value in split {
         if DATE_RE.is_match(value) {
             date_vec.push(value);
             continue;
@@ -100,20 +108,35 @@ pub fn parse(input: &str) -> Result<Transaction> {
     let right_arrow_index = others_vec
         .iter()
         .position(|r| *r == ">")
-        .expect("No > provided");
+        .expect("No '>' provided");
 
-    let from_account = String::from(others_vec[right_arrow_index - 1]);
-    let to_account = String::from(others_vec[right_arrow_index + 1]);
+    let from = String::from(others_vec[right_arrow_index - 1]);
+    let from_account = match accounts.get(from.as_str()) {
+        Some(v) => v.into(),
+        None => from,
+    };
+
+    let to = String::from(others_vec[right_arrow_index + 1]);
+    let to_account = match accounts.get(to.as_str()) {
+        Some(v) => v.into(),
+        None => to,
+    };
+
     for _ in 0..3 {
         others_vec.remove(right_arrow_index - 1);
     }
+
+    let currency = match currency_vec.len() {
+        0 => default_currency,
+        _ => currency_vec[0].into(),
+    };
 
     return Ok(Transaction {
         date,
         payee,
         narration: others_vec.join(" "),
         amount,
-        currency: String::from("AUD"),
+        currency,
         from_account,
         to_account,
     });
@@ -144,5 +167,61 @@ mod tests {
         assert_eq!(transaction.currency, "AUD");
         assert_eq!(transaction.from_account, "Assets:MasterCard:CBA");
         assert_eq!(transaction.to_account, "Expense:Food");
+    }
+
+    #[test]
+    fn parser_can_parse_input_in_amount_payee_from_account_to_account_format() {
+        let result = parse("22.34 @KFL cba > food");
+        assert!(result.is_ok());
+        let transaction = result.unwrap();
+        assert!(DATE_RE.is_match(&transaction.date));
+        assert_eq!(transaction.payee, "KFL");
+        assert_eq!(transaction.narration, "");
+        assert_eq!(transaction.amount, 22.34);
+        assert_eq!(transaction.currency, "AUD");
+        assert_eq!(transaction.from_account, "Assets:MasterCard:CBA");
+        assert_eq!(transaction.to_account, "Expenses:Food");
+    }
+
+    #[test]
+    fn parser_can_parse_input_in_payee_amount_from_account_to_account_format() {
+        let result = parse("@KFL 22.34 cba > food");
+        assert!(result.is_ok());
+        let transaction = result.unwrap();
+        assert!(DATE_RE.is_match(&transaction.date));
+        assert_eq!(transaction.payee, "KFL");
+        assert_eq!(transaction.narration, "");
+        assert_eq!(transaction.amount, 22.34);
+        assert_eq!(transaction.currency, "AUD");
+        assert_eq!(transaction.from_account, "Assets:MasterCard:CBA");
+        assert_eq!(transaction.to_account, "Expenses:Food");
+    }
+
+    #[test]
+    fn parser_can_parse_input_in_amount_currency_payee_from_account_to_account_format() {
+        let result = parse("22.34 USD @KFL cba > food");
+        assert!(result.is_ok());
+        let transaction = result.unwrap();
+        assert!(DATE_RE.is_match(&transaction.date));
+        assert_eq!(transaction.payee, "KFL");
+        assert_eq!(transaction.narration, "");
+        assert_eq!(transaction.amount, 22.34);
+        assert_eq!(transaction.currency, "USD");
+        assert_eq!(transaction.from_account, "Assets:MasterCard:CBA");
+        assert_eq!(transaction.to_account, "Expenses:Food");
+    }
+
+    #[test]
+    fn parser_can_parse_input_in_date_amount_payee_from_account_to_account_format() {
+        let result = parse("2021-11-23 22.34 @KFL cba > food");
+        assert!(result.is_ok());
+        let transaction = result.unwrap();
+        assert!(DATE_RE.is_match(&transaction.date));
+        assert_eq!(transaction.payee, "KFL");
+        assert_eq!(transaction.narration, "");
+        assert_eq!(transaction.amount, 22.34);
+        assert_eq!(transaction.currency, "AUD");
+        assert_eq!(transaction.from_account, "Assets:MasterCard:CBA");
+        assert_eq!(transaction.to_account, "Expenses:Food");
     }
 }
