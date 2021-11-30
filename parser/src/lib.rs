@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use std::{collections::HashMap, env};
 
 use anyhow::Result;
 use chrono::prelude::Local;
@@ -49,8 +49,10 @@ impl From<Transaction> for String {
 }
 
 pub fn parse(input: &str) -> Result<Transaction> {
+    let current_folder = env::current_dir().unwrap();
+    println!("current dir is: {}", current_folder.display());
     let mut cfg = config::Config::default();
-    cfg.merge(config::File::with_name("config"))?;
+    cfg.merge(config::File::with_name("config.toml"))?;
 
     let default_currency = cfg.get_str("currency")?;
     let accounts = cfg.get::<HashMap<String, String>>("accounts")?;
