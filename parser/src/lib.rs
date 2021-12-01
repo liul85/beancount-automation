@@ -50,7 +50,6 @@ impl From<Transaction> for String {
 
 pub fn parse(input: &str) -> Result<Transaction> {
     let s = Settings::new()?;
-    println!("Settings are {:?}", s);
     let mut date_vec: Vec<&str> = vec![];
     let mut payee_vec: Vec<&str> = vec![];
     let mut amount_vec: Vec<f32> = vec![];

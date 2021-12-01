@@ -17,7 +17,6 @@ impl Settings {
             FileFormat::Toml,
         ))
         .unwrap();
-        println!("s is {:?}", s);
         s.try_into()
     }
 }
