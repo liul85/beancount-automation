@@ -2,7 +2,7 @@ use anyhow::Result;
 use bot_message::telegram::{ResponseBody, Update};
 use http::StatusCode;
 use log::{error, info};
-use parser::parse;
+use parser::Parser;
 use repository::github_store::GithubStore;
 use repository::Store;
 use vercel_lambda::{error::VercelError, lambda, IntoResponse, Request, Response};
@@ -20,11 +20,19 @@ fn handler(request: Request) -> Result<impl IntoResponse, VercelError> {
 
     let update: Update = serde_json::from_str(&body).unwrap();
 
-    let transaction = parse(&update.message.text).unwrap();
+    let parser = Parser::new().or_else(|e| {
+        Err(VercelError::new(
+            format!("Failed to create parser: {}", e).as_str(),
+        ))
+    })?;
+    let transaction = parser.parse(&update.message.text).unwrap();
     info!("parsed transaction is {:?}", transaction);
 
-    let store =
-        GithubStore::new().or_else(|_| Err(VercelError::new("Failed to create github store!")))?;
+    let store = GithubStore::new().or_else(|e| {
+        Err(VercelError::new(
+            format!("Failed to create github store: {}", e).as_str(),
+        ))
+    })?;
     let result = store.save(transaction.to_beancount());
     match result {
         Ok(_) => {

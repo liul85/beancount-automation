@@ -1,6 +1,7 @@
 use std::{collections::HashMap, env};
 
-use config::{Config, ConfigError, File, FileFormat};
+use anyhow::Result;
+use config::{Config, File, FileFormat};
 use serde::Deserialize;
 
 #[derive(Debug, Deserialize)]
@@ -10,13 +11,13 @@ pub struct Settings {
 }
 
 impl Settings {
-    pub fn new() -> Result<Self, ConfigError> {
+    pub fn new() -> Result<Self> {
         let mut s = Config::default();
         s.merge(File::from_str(
             env::var("CONFIG").unwrap().as_str(),
             FileFormat::Toml,
         ))
         .unwrap();
-        s.try_into()
+        s.try_into().map_err(|e| e.into())
     }
 }

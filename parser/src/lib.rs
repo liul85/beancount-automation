@@ -48,113 +48,126 @@ impl From<Transaction> for String {
     }
 }
 
-pub fn parse(input: &str) -> Result<Transaction> {
-    let s = Settings::new()?;
-    let mut date_vec: Vec<&str> = vec![];
-    let mut payee_vec: Vec<&str> = vec![];
-    let mut amount_vec: Vec<f32> = vec![];
-    let mut currency_vec: Vec<&str> = vec![];
-    let mut others_vec: Vec<&str> = vec![];
+pub struct Parser {
+    settings: Settings,
+}
 
-    let split: Vec<&str> = input.split(' ').collect();
+impl Parser {
+    pub fn new() -> Result<Self> {
+        let settings = Settings::new()?;
+        Ok(Self { settings })
+    }
 
-    for value in split {
-        if DATE_RE.is_match(value) {
-            date_vec.push(value);
-            continue;
-        }
+    pub fn parse(self, input: &str) -> Result<Transaction> {
+        let mut date_vec: Vec<&str> = vec![];
+        let mut payee_vec: Vec<&str> = vec![];
+        let mut amount_vec: Vec<f32> = vec![];
+        let mut currency_vec: Vec<&str> = vec![];
+        let mut others_vec: Vec<&str> = vec![];
 
-        if PAYEE_RE.is_match(value) {
-            payee_vec.push(value);
-            continue;
-        }
+        let split: Vec<&str> = input.split(' ').collect();
 
-        match value.parse::<f32>() {
-            Ok(v) => {
-                amount_vec.push(v);
+        for value in split {
+            if DATE_RE.is_match(value) {
+                date_vec.push(value);
                 continue;
             }
-            Err(_) => (),
+
+            if PAYEE_RE.is_match(value) {
+                payee_vec.push(value);
+                continue;
+            }
+
+            match value.parse::<f32>() {
+                Ok(v) => {
+                    amount_vec.push(v);
+                    continue;
+                }
+                Err(_) => (),
+            }
+
+            if CURRENCY_RE.is_match(value) {
+                currency_vec.push(value);
+                continue;
+            }
+
+            others_vec.push(value);
         }
 
-        if CURRENCY_RE.is_match(value) {
-            currency_vec.push(value);
-            continue;
+        let date = match date_vec.first() {
+            Some(v) => v.to_string(),
+            None => Local::now().format("%Y-%m-%d").to_string(),
+        };
+
+        let payee = match payee_vec.first() {
+            Some(v) => v[1..].to_string(),
+            None => "".into(),
+        };
+
+        let amount = match amount_vec.first() {
+            Some(v) => *v,
+            None => 0.0,
+        };
+
+        let right_arrow_index = others_vec
+            .iter()
+            .position(|r| *r == ">")
+            .expect("No '>' provided");
+
+        let from = String::from(others_vec[right_arrow_index - 1]);
+        let from_account = match self.settings.accounts.get(from.as_str()) {
+            Some(v) => v.into(),
+            None => from,
+        };
+
+        let to = String::from(others_vec[right_arrow_index + 1]);
+        let to_account = match self.settings.accounts.get(to.as_str()) {
+            Some(v) => v.into(),
+            None => to,
+        };
+
+        for _ in 0..3 {
+            others_vec.remove(right_arrow_index - 1);
         }
 
-        others_vec.push(value);
+        let currency = match currency_vec.len() {
+            0 => self.settings.currency,
+            _ => currency_vec[0].into(),
+        };
+
+        return Ok(Transaction {
+            date,
+            payee,
+            narration: others_vec.join(" "),
+            amount,
+            currency,
+            from_account,
+            to_account,
+        });
     }
-
-    let date = match date_vec.first() {
-        Some(v) => v.to_string(),
-        None => Local::now().format("%Y-%m-%d").to_string(),
-    };
-
-    let payee = match payee_vec.first() {
-        Some(v) => v[1..].to_string(),
-        None => "".into(),
-    };
-
-    let amount = match amount_vec.first() {
-        Some(v) => *v,
-        None => 0.0,
-    };
-
-    let right_arrow_index = others_vec
-        .iter()
-        .position(|r| *r == ">")
-        .expect("No '>' provided");
-
-    let from = String::from(others_vec[right_arrow_index - 1]);
-    let from_account = match s.accounts.get(from.as_str()) {
-        Some(v) => v.into(),
-        None => from,
-    };
-
-    let to = String::from(others_vec[right_arrow_index + 1]);
-    let to_account = match s.accounts.get(to.as_str()) {
-        Some(v) => v.into(),
-        None => to,
-    };
-
-    for _ in 0..3 {
-        others_vec.remove(right_arrow_index - 1);
-    }
-
-    let currency = match currency_vec.len() {
-        0 => s.currency,
-        _ => currency_vec[0].into(),
-    };
-
-    return Ok(Transaction {
-        date,
-        payee,
-        narration: others_vec.join(" "),
-        amount,
-        currency,
-        from_account,
-        to_account,
-    });
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use std::env;
 
     #[test]
     fn parser_can_parse_standard_input() {
-        env::set_var(
-            "CONFIG",
-            "
-currency = \"AUD\"
-[accounts]
-cba = \"Assets:MasterCard:CBA\"
-amex = \"Liabilities:CreditCard:AMEX:Liang\"
-food = \"Expenses:Food\"",
-        );
-        let result =
-            parse("2021-09-08 @KFC hamburger 12.40 AUD Assets:MasterCard:CBA > Expense:Food");
+        let parser = Parser {
+            settings: Settings {
+                currency: "AUD".into(),
+                accounts: [
+                    ("cba".into(), "Assets:MasterCard:CBA".into()),
+                    ("amex".into(), "Liabilities:CreditCard:AMEX:Liang".into()),
+                    ("food".into(), "Expenses:Food".into()),
+                ]
+                .iter()
+                .cloned()
+                .collect(),
+            },
+        };
+        let result = parser
+            .parse("2021-09-08 @KFC hamburger 12.40 AUD Assets:MasterCard:CBA > Expense:Food");
         assert!(result.is_ok());
         let transaction = result.unwrap();
         assert_eq!(transaction.to_beancount(), "2021-09-08 * \"KFC\" \"hamburger\"\n  Assets:MasterCard:CBA        -12.40 AUD\n  Expense:Food        12.40 AUD\n");
@@ -162,16 +175,20 @@ food = \"Expenses:Food\"",
 
     #[test]
     fn parser_can_parse_input_without_date() {
-        env::set_var(
-            "CONFIG",
-            "
-currency = \"AUD\"
-[accounts]
-cba = \"Assets:MasterCard:CBA\"
-amex = \"Liabilities:CreditCard:AMEX:Liang\"
-food = \"Expenses:Food\"",
-        );
-        let result = parse("@KFC hamburger 12.40 AUD Assets:MasterCard:CBA > Expense:Food");
+        let parser = Parser {
+            settings: Settings {
+                currency: "AUD".into(),
+                accounts: [
+                    ("cba".into(), "Assets:MasterCard:CBA".into()),
+                    ("amex".into(), "Liabilities:CreditCard:AMEX:Liang".into()),
+                    ("food".into(), "Expenses:Food".into()),
+                ]
+                .iter()
+                .cloned()
+                .collect(),
+            },
+        };
+        let result = parser.parse("@KFC hamburger 12.40 AUD Assets:MasterCard:CBA > Expense:Food");
         assert!(result.is_ok());
         let transaction = result.unwrap();
         assert!(DATE_RE.is_match(&transaction.date));
@@ -185,16 +202,20 @@ food = \"Expenses:Food\"",
 
     #[test]
     fn parser_can_parse_input_in_amount_payee_from_account_to_account_format() {
-        env::set_var(
-            "CONFIG",
-            "
-currency = \"AUD\"
-[accounts]
-cba = \"Assets:MasterCard:CBA\"
-amex = \"Liabilities:CreditCard:AMEX:Liang\"
-food = \"Expenses:Food\"",
-        );
-        let result = parse("22.34 @KFL cba > food");
+        let parser = Parser {
+            settings: Settings {
+                currency: "AUD".into(),
+                accounts: [
+                    ("cba".into(), "Assets:MasterCard:CBA".into()),
+                    ("amex".into(), "Liabilities:CreditCard:AMEX:Liang".into()),
+                    ("food".into(), "Expenses:Food".into()),
+                ]
+                .iter()
+                .cloned()
+                .collect(),
+            },
+        };
+        let result = parser.parse("22.34 @KFL cba > food");
         assert!(result.is_ok());
         let transaction = result.unwrap();
         assert!(DATE_RE.is_match(&transaction.date));
@@ -208,16 +229,20 @@ food = \"Expenses:Food\"",
 
     #[test]
     fn parser_can_parse_input_in_payee_amount_from_account_to_account_format() {
-        env::set_var(
-            "CONFIG",
-            "
-currency = \"AUD\"
-[accounts]
-cba = \"Assets:MasterCard:CBA\"
-amex = \"Liabilities:CreditCard:AMEX:Liang\"
-food = \"Expenses:Food\"",
-        );
-        let result = parse("@KFL 22.34 cba > food");
+        let parser = Parser {
+            settings: Settings {
+                currency: "AUD".into(),
+                accounts: [
+                    ("cba".into(), "Assets:MasterCard:CBA".into()),
+                    ("amex".into(), "Liabilities:CreditCard:AMEX:Liang".into()),
+                    ("food".into(), "Expenses:Food".into()),
+                ]
+                .iter()
+                .cloned()
+                .collect(),
+            },
+        };
+        let result = parser.parse("@KFL 22.34 cba > food");
         assert!(result.is_ok());
         let transaction = result.unwrap();
         assert!(DATE_RE.is_match(&transaction.date));
@@ -231,16 +256,20 @@ food = \"Expenses:Food\"",
 
     #[test]
     fn parser_can_parse_input_in_amount_currency_payee_from_account_to_account_format() {
-        env::set_var(
-            "CONFIG",
-            "
-currency = \"AUD\"
-[accounts]
-cba = \"Assets:MasterCard:CBA\"
-amex = \"Liabilities:CreditCard:AMEX:Liang\"
-food = \"Expenses:Food\"",
-        );
-        let result = parse("22.34 USD @KFL cba > food");
+        let parser = Parser {
+            settings: Settings {
+                currency: "AUD".into(),
+                accounts: [
+                    ("cba".into(), "Assets:MasterCard:CBA".into()),
+                    ("amex".into(), "Liabilities:CreditCard:AMEX:Liang".into()),
+                    ("food".into(), "Expenses:Food".into()),
+                ]
+                .iter()
+                .cloned()
+                .collect(),
+            },
+        };
+        let result = parser.parse("22.34 USD @KFL cba > food");
         assert!(result.is_ok());
         let transaction = result.unwrap();
         assert!(DATE_RE.is_match(&transaction.date));
@@ -254,16 +283,20 @@ food = \"Expenses:Food\"",
 
     #[test]
     fn parser_can_parse_input_in_date_amount_payee_from_account_to_account_format() {
-        env::set_var(
-            "CONFIG",
-            "
-currency = \"AUD\"
-[accounts]
-cba = \"Assets:MasterCard:CBA\"
-amex = \"Liabilities:CreditCard:AMEX:Liang\"
-food = \"Expenses:Food\"",
-        );
-        let result = parse("2021-11-23 22.34 @KFL cba > food");
+        let parser = Parser {
+            settings: Settings {
+                currency: "AUD".into(),
+                accounts: [
+                    ("cba".into(), "Assets:MasterCard:CBA".into()),
+                    ("amex".into(), "Liabilities:CreditCard:AMEX:Liang".into()),
+                    ("food".into(), "Expenses:Food".into()),
+                ]
+                .iter()
+                .cloned()
+                .collect(),
+            },
+        };
+        let result = parser.parse("2021-11-23 22.34 @KFL cba > food");
         assert!(result.is_ok());
         let transaction = result.unwrap();
         assert!(DATE_RE.is_match(&transaction.date));
