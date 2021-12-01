@@ -141,9 +141,19 @@ pub fn parse(input: &str) -> Result<Transaction> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::env;
 
     #[test]
     fn parser_can_parse_standard_input() {
+        env::set_var(
+            "CONFIG",
+            "
+currency = \"AUD\"
+[accounts]
+cba = \"Assets:MasterCard:CBA\"
+amex = \"Liabilities:CreditCard:AMEX:Liang\"
+food = \"Expenses:Food\"",
+        );
         let result =
             parse("2021-09-08 @KFC hamburger 12.40 AUD Assets:MasterCard:CBA > Expense:Food");
         assert!(result.is_ok());
@@ -153,6 +163,15 @@ mod tests {
 
     #[test]
     fn parser_can_parse_input_without_date() {
+        env::set_var(
+            "CONFIG",
+            "
+currency = \"AUD\"
+[accounts]
+cba = \"Assets:MasterCard:CBA\"
+amex = \"Liabilities:CreditCard:AMEX:Liang\"
+food = \"Expenses:Food\"",
+        );
         let result = parse("@KFC hamburger 12.40 AUD Assets:MasterCard:CBA > Expense:Food");
         assert!(result.is_ok());
         let transaction = result.unwrap();
@@ -167,6 +186,15 @@ mod tests {
 
     #[test]
     fn parser_can_parse_input_in_amount_payee_from_account_to_account_format() {
+        env::set_var(
+            "CONFIG",
+            "
+currency = \"AUD\"
+[accounts]
+cba = \"Assets:MasterCard:CBA\"
+amex = \"Liabilities:CreditCard:AMEX:Liang\"
+food = \"Expenses:Food\"",
+        );
         let result = parse("22.34 @KFL cba > food");
         assert!(result.is_ok());
         let transaction = result.unwrap();
@@ -181,6 +209,15 @@ mod tests {
 
     #[test]
     fn parser_can_parse_input_in_payee_amount_from_account_to_account_format() {
+        env::set_var(
+            "CONFIG",
+            "
+currency = \"AUD\"
+[accounts]
+cba = \"Assets:MasterCard:CBA\"
+amex = \"Liabilities:CreditCard:AMEX:Liang\"
+food = \"Expenses:Food\"",
+        );
         let result = parse("@KFL 22.34 cba > food");
         assert!(result.is_ok());
         let transaction = result.unwrap();
@@ -195,6 +232,15 @@ mod tests {
 
     #[test]
     fn parser_can_parse_input_in_amount_currency_payee_from_account_to_account_format() {
+        env::set_var(
+            "CONFIG",
+            "
+currency = \"AUD\"
+[accounts]
+cba = \"Assets:MasterCard:CBA\"
+amex = \"Liabilities:CreditCard:AMEX:Liang\"
+food = \"Expenses:Food\"",
+        );
         let result = parse("22.34 USD @KFL cba > food");
         assert!(result.is_ok());
         let transaction = result.unwrap();
@@ -209,6 +255,15 @@ mod tests {
 
     #[test]
     fn parser_can_parse_input_in_date_amount_payee_from_account_to_account_format() {
+        env::set_var(
+            "CONFIG",
+            "
+currency = \"AUD\"
+[accounts]
+cba = \"Assets:MasterCard:CBA\"
+amex = \"Liabilities:CreditCard:AMEX:Liang\"
+food = \"Expenses:Food\"",
+        );
         let result = parse("2021-11-23 22.34 @KFL cba > food");
         assert!(result.is_ok());
         let transaction = result.unwrap();
