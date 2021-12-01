@@ -1,9 +1,9 @@
-use std::{collections::HashMap, env, fs};
-
 use anyhow::Result;
 use chrono::prelude::Local;
 use lazy_static::lazy_static;
 use regex::Regex;
+mod settings;
+use settings::Settings;
 
 lazy_static! {
     static ref DATE_RE: Regex = Regex::new("^\\d{4}-\\d{2}-\\d{2}$").unwrap();
@@ -49,19 +49,8 @@ impl From<Transaction> for String {
 }
 
 pub fn parse(input: &str) -> Result<Transaction> {
-    let current_folder = env::current_dir().unwrap();
-    println!("current dir is: {}", current_folder.display());
-    let paths = fs::read_dir(env::var("OUT_DIR").unwrap()).unwrap();
-    for path in paths {
-        println!("Name: {}", path.unwrap().path().display())
-    }
-
-    let mut cfg = config::Config::default();
-    cfg.merge(config::File::with_name("config.toml"))?;
-
-    let default_currency = cfg.get_str("currency")?;
-    let accounts = cfg.get::<HashMap<String, String>>("accounts")?;
-
+    let s = Settings::new()?;
+    println!("Settings are {:?}", s);
     let mut date_vec: Vec<&str> = vec![];
     let mut payee_vec: Vec<&str> = vec![];
     let mut amount_vec: Vec<f32> = vec![];
@@ -118,13 +107,13 @@ pub fn parse(input: &str) -> Result<Transaction> {
         .expect("No '>' provided");
 
     let from = String::from(others_vec[right_arrow_index - 1]);
-    let from_account = match accounts.get(from.as_str()) {
+    let from_account = match s.accounts.get(from.as_str()) {
         Some(v) => v.into(),
         None => from,
     };
 
     let to = String::from(others_vec[right_arrow_index + 1]);
-    let to_account = match accounts.get(to.as_str()) {
+    let to_account = match s.accounts.get(to.as_str()) {
         Some(v) => v.into(),
         None => to,
     };
@@ -134,7 +123,7 @@ pub fn parse(input: &str) -> Result<Transaction> {
     }
 
     let currency = match currency_vec.len() {
-        0 => default_currency,
+        0 => s.currency,
         _ => currency_vec[0].into(),
     };
 
