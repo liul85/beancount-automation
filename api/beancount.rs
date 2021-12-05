@@ -26,9 +26,24 @@ fn handler(request: Request) -> Result<impl IntoResponse, VercelError> {
             format!("Failed to create parser: {}", e).as_str(),
         ))
     })?;
-    let transaction = parser
-        .parse(&update.message.text)
-        .or_else(|e| Err(VercelError::new(e.to_string().as_str())))?;
+
+    let transaction = match parser.parse(&update.message.text) {
+        Ok(transaction) => transaction,
+        Err(e) => {
+            error!("Failed to parse input: {}", e.to_string());
+            let response_body = ResponseBody {
+                method: "sendMessage".into(),
+                chat_id: update.message.chat.id,
+                text: format!("⚠️\n==============================\nFailed to parse input: {}", e.to_string()),
+                reply_to_message_id: update.message.message_id,
+            };
+            return Ok(Response::builder()
+                .status(StatusCode::OK)
+                .header("Content-Type", "application/json")
+                .body(serde_json::to_string(&response_body).unwrap())?);
+        }
+    };
+
     info!("parsed transaction is {:?}", transaction);
 
     let store = GithubStore::new().or_else(|e| {
@@ -36,8 +51,8 @@ fn handler(request: Request) -> Result<impl IntoResponse, VercelError> {
             format!("Failed to create github store: {}", e).as_str(),
         ))
     })?;
-    let result = store.save(transaction.to_beancount());
-    match result {
+
+    match store.save(transaction.to_beancount()) {
         Ok(_) => {
             info!("Successfully saved transaction!");
             let response_body = ResponseBody {
