@@ -18,14 +18,17 @@ fn handler(request: Request) -> Result<impl IntoResponse, VercelError> {
     let body = String::from_utf8_lossy(request.body());
     info!("request body is {}", body);
 
-    let update: Update = serde_json::from_str(&body).unwrap();
+    let update: Update =
+        serde_json::from_str(&body).or_else(|e| Err(VercelError::new(e.to_string().as_str())))?;
 
     let parser = Parser::new().or_else(|e| {
         Err(VercelError::new(
             format!("Failed to create parser: {}", e).as_str(),
         ))
     })?;
-    let transaction = parser.parse(&update.message.text).unwrap();
+    let transaction = parser
+        .parse(&update.message.text)
+        .or_else(|e| Err(VercelError::new(e.to_string().as_str())))?;
     info!("parsed transaction is {:?}", transaction);
 
     let store = GithubStore::new().or_else(|e| {
