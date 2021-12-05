@@ -1,4 +1,4 @@
-use anyhow::Result;
+use anyhow::{anyhow, Result};
 use chrono::prelude::Local;
 use lazy_static::lazy_static;
 use regex::Regex;
@@ -109,10 +109,10 @@ impl Parser {
             None => 0.0,
         };
 
-        let right_arrow_index = others_vec
-            .iter()
-            .position(|r| *r == ">")
-            .expect("No '>' provided");
+        let right_arrow_index = match others_vec.iter().position(|r| *r == ">") {
+            Some(index) => index,
+            None => return Err(anyhow!("Could not find > in input.")),
+        };
 
         let from = String::from(others_vec[right_arrow_index - 1]);
         let from_account = match self.settings.accounts.get(from.as_str()) {
@@ -198,6 +198,25 @@ mod tests {
         assert_eq!(transaction.currency, "AUD");
         assert_eq!(transaction.from_account, "Assets:MasterCard:CBA");
         assert_eq!(transaction.to_account, "Expense:Food");
+    }
+
+    #[test]
+    fn parser_return_error_if_input_without_space_before_right_arrow() {
+        let parser = Parser {
+            settings: Settings {
+                currency: "AUD".into(),
+                accounts: [
+                    ("cba".into(), "Assets:MasterCard:CBA".into()),
+                    ("amex".into(), "Liabilities:CreditCard:AMEX:Liang".into()),
+                    ("food".into(), "Expenses:Food".into()),
+                ]
+                .iter()
+                .cloned()
+                .collect(),
+            },
+        };
+        let result = parser.parse("@Costco lunch 8.97 cba>food");
+        assert!(result.is_err());
     }
 
     #[test]
