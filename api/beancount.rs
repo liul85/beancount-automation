@@ -21,11 +21,8 @@ fn handler(request: Request) -> Result<impl IntoResponse, VercelError> {
     let update: Update =
         serde_json::from_str(&body).map_err(|e| VercelError::new(e.to_string().as_str()))?;
 
-    let parser = Parser::new().or_else(|e| {
-        Err(VercelError::new(
-            format!("Failed to create parser: {}", e).as_str(),
-        ))
-    })?;
+    let parser = Parser::new()
+        .map_err(|e| VercelError::new(e.to_string().as_str()))?;
 
     let ok_response = |text| {
         let response_body = ResponseBody {
