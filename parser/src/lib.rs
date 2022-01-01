@@ -23,21 +23,6 @@ pub struct Transaction {
 }
 
 impl Transaction {
-    pub fn to_beancount(&self) -> String {
-        format!(
-            "{} * \"{}\" \"{}\"\n  {}        -{:.2} {}\n  {}        {:.2} {}\n",
-            self.date,
-            self.payee,
-            self.narration,
-            self.from_account,
-            self.amount,
-            self.currency,
-            self.to_account,
-            self.amount,
-            self.currency
-        )
-    }
-
     pub fn year(&self) -> String {
         self.date.split("-").next().unwrap().into()
     }
@@ -46,8 +31,16 @@ impl Transaction {
 impl From<Transaction> for String {
     fn from(transaction: Transaction) -> Self {
         format!(
-            "✅\n==============================\n{}",
-            transaction.to_beancount()
+            "{} * \"{}\" \"{}\"\n  {}        -{:.2} {}\n  {}        {:.2} {}\n",
+            transaction.date,
+            transaction.payee,
+            transaction.narration,
+            transaction.from_account,
+            transaction.amount,
+            transaction.currency,
+            transaction.to_account,
+            transaction.amount,
+            transaction.currency
         )
     }
 }
@@ -174,8 +167,9 @@ mod tests {
             .parse("2021-09-08 @KFC hamburger 12.40 AUD Assets:MasterCard:CBA > Expense:Food");
         assert!(result.is_ok());
         let transaction = result.unwrap();
-        assert_eq!(transaction.to_beancount(), "2021-09-08 * \"KFC\" \"hamburger\"\n  Assets:MasterCard:CBA        -12.40 AUD\n  Expense:Food        12.40 AUD\n");
         assert_eq!(transaction.year(), "2021");
+        let actual_text: String = transaction.into();
+        assert_eq!(actual_text, "2021-09-08 * \"KFC\" \"hamburger\"\n  Assets:MasterCard:CBA        -12.40 AUD\n  Expense:Food        12.40 AUD\n");
     }
 
     #[test]

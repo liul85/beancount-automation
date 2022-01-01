@@ -75,10 +75,10 @@ fn handler(request: Request) -> Result<impl IntoResponse, VercelError> {
     let store = GithubStore::new()
         .map_err(|e| VercelError::new(format!("Failed to create github store: {}", e).as_str()))?;
 
-    match store.save(&transaction) {
-        Ok(_) => {
+    match store.save(transaction) {
+        Ok(text) => {
             info!("Successfully saved transaction!");
-            ok_response(transaction.into())
+            ok_response(text)
         }
         Err(e) => {
             error!("Failed to save transaction: {}", e.to_string());

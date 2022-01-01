@@ -74,7 +74,7 @@ impl GithubStore {
 }
 
 impl Store for GithubStore {
-    fn save(&self, transaction: &Transaction) -> Result<()> {
+    fn save(&self, transaction: Transaction) -> Result<String> {
         let url = format!(
             "https://api.github.com/repos/{}/{}/contents/{}",
             self.owner,
@@ -96,10 +96,12 @@ impl Store for GithubStore {
         let file_content: FileContent = content_response.json()?;
         let decoded_value = decode(&file_content.content.replace("\n", ""))?;
         let content = String::from_utf8_lossy(&decoded_value);
+        let transaction_year = transaction.year();
+        let transaction_text = String::from(transaction);
 
         let update_request = UpdateRequest {
             message: "updated content".to_string(),
-            content: encode(format!("{}\n{}", content, transaction.to_beancount())),
+            content: encode(format!("{}\n{}", content, transaction_text)),
             sha: file_content.sha,
         };
 
@@ -110,10 +112,9 @@ impl Store for GithubStore {
             StatusCode::OK | StatusCode::CREATED => {
                 info!(
                     "Successfully created/updated file {} in repo {}.",
-                    transaction.year(),
-                    self.repo
+                    transaction_year, self.repo
                 );
-                Ok(())
+                Ok(transaction_text)
             }
             _ => {
                 error!("Failed to save transaction!");
