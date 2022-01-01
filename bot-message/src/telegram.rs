@@ -3,7 +3,8 @@ use serde::{Deserialize, Serialize};
 #[derive(Serialize, Deserialize, Debug)]
 pub struct Update {
     update_id: u64,
-    pub message: Message,
+    pub message: Option<Message>,
+    pub edited_message: Option<Message>,
 }
 
 #[derive(Serialize, Deserialize, Debug)]

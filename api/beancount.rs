@@ -1,7 +1,7 @@
 use anyhow::Result;
 use bot_message::telegram::{ResponseBody, Update};
 use http::StatusCode;
-use log::{error, info};
+use log::{error, info, warn};
 use parser::Parser;
 use repository::github_store::GithubStore;
 use repository::Store;
@@ -18,18 +18,39 @@ fn handler(request: Request) -> Result<impl IntoResponse, VercelError> {
     let body = String::from_utf8_lossy(request.body());
     info!("request body is {}", body);
 
-    let update: Update =
-        serde_json::from_str(&body).map_err(|e| VercelError::new(e.to_string().as_str()))?;
+    let update: Update = match serde_json::from_str(&body) {
+        Ok(v) => v,
+        Err(_) => {
+            warn!("Failed to deserialize request body: {}", body);
+            return Ok(Response::builder()
+                .status(StatusCode::OK)
+                .header("Content-Type", "application/json")
+                .body("Failed to deserialize request body".into())?);
+        }
+    };
 
-    let parser = Parser::new()
-        .map_err(|e| VercelError::new(e.to_string().as_str()))?;
+    let message = match update.message {
+        Some(v) => v,
+        None => match update.edited_message {
+            Some(v) => v,
+            None => {
+                warn!("Could not get message or edited_message from request");
+                return Ok(Response::builder()
+                    .status(StatusCode::OK)
+                    .header("Content-Type", "application/json")
+                    .body("Could not get message or edited_message from request".into())?);
+            }
+        },
+    };
+
+    let parser = Parser::new().map_err(|e| VercelError::new(e.to_string().as_str()))?;
 
     let ok_response = |text| {
         let response_body = ResponseBody {
             method: "sendMessage".into(),
-            chat_id: update.message.chat.id,
+            chat_id: message.chat.id,
             text,
-            reply_to_message_id: update.message.message_id,
+            reply_to_message_id: message.message_id,
         };
 
         Ok(Response::builder()
@@ -38,7 +59,7 @@ fn handler(request: Request) -> Result<impl IntoResponse, VercelError> {
             .body(serde_json::to_string(&response_body).unwrap())?)
     };
 
-    let transaction = match parser.parse(&update.message.text) {
+    let transaction = match parser.parse(&message.text) {
         Ok(transaction) => transaction,
         Err(e) => {
             error!("Failed to parse input: {}", e.to_string());

@@ -1,6 +1,6 @@
 use std::{collections::HashMap, env};
 
-use anyhow::Result;
+use anyhow::{anyhow, Result};
 use config::{Config, File, FileFormat};
 use serde::Deserialize;
 
@@ -13,11 +13,12 @@ pub struct Settings {
 impl Settings {
     pub fn new() -> Result<Self> {
         let mut s = Config::default();
-        s.merge(File::from_str(
-            env::var("CONFIG").unwrap().as_str(),
-            FileFormat::Toml,
-        ))
-        .unwrap();
+        let config = match env::var("CONFIG") {
+            Ok(v) => v,
+            Err(_) => return Err(anyhow!("CONFIG env not set!")),
+        };
+
+        s.merge(File::from_str(config.as_str(), FileFormat::Toml))?;
         s.try_into().map_err(|e| e.into())
     }
 }
