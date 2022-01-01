@@ -74,7 +74,7 @@ impl GithubStore {
 }
 
 impl Store for GithubStore {
-    fn save(&self, transaction: Transaction) -> Result<()> {
+    fn save(&self, transaction: &Transaction) -> Result<()> {
         let url = format!(
             "https://api.github.com/repos/{}/{}/contents/{}",
             self.owner,
