@@ -37,6 +37,10 @@ impl Transaction {
             self.currency
         )
     }
+
+    pub fn year(&self) -> String {
+        self.date.split("-").next().unwrap().into()
+    }
 }
 
 impl From<Transaction> for String {
@@ -171,6 +175,7 @@ mod tests {
         assert!(result.is_ok());
         let transaction = result.unwrap();
         assert_eq!(transaction.to_beancount(), "2021-09-08 * \"KFC\" \"hamburger\"\n  Assets:MasterCard:CBA        -12.40 AUD\n  Expense:Food        12.40 AUD\n");
+        assert_eq!(transaction.year(), "2021");
     }
 
     #[test]

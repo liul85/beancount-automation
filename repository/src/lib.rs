@@ -1,7 +1,8 @@
 use anyhow::Result;
+use parser::Transaction;
 
 pub mod github_store;
 
 pub trait Store {
-    fn save(&self, s: String) -> Result<()>;
+    fn save(&self, transaction: Transaction) -> Result<()>;
 }

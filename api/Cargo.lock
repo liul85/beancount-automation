@@ -1285,6 +1285,7 @@ dependencies = [
  "base64 0.13.0",
  "chrono",
  "log",
+ "parser",
  "reqwest",
  "serde 1.0.130",
  "serde_json",

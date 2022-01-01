@@ -1,8 +1,8 @@
 use crate::Store;
 use anyhow::{anyhow, Result};
 use base64::{decode, encode};
-use chrono::prelude::Local;
 use log::{error, info};
+use parser::Transaction;
 use reqwest::{blocking::Client, header, StatusCode};
 use serde::{Deserialize, Serialize};
 use std::env;
@@ -10,7 +10,6 @@ use std::env;
 pub struct GithubStore {
     owner: String,
     repo: String,
-    path: String,
     client: Client,
 }
 
@@ -50,7 +49,6 @@ impl GithubStore {
     pub fn new() -> Result<Self> {
         let owner = env::var("GITHUB_OWNER")?;
         let repo = env::var("GITHUB_REPO")?;
-        let path = format!("{}.bean", Local::now().format("%Y").to_string());
         let github_token = env::var("GITHUB_TOKEN")?;
 
         let mut headers = header::HeaderMap::new();
@@ -70,17 +68,18 @@ impl GithubStore {
         Ok(GithubStore {
             owner,
             repo,
-            path,
             client,
         })
     }
 }
 
 impl Store for GithubStore {
-    fn save(&self, update: String) -> Result<()> {
+    fn save(&self, transaction: Transaction) -> Result<()> {
         let url = format!(
             "https://api.github.com/repos/{}/{}/contents/{}",
-            self.owner, self.repo, self.path
+            self.owner,
+            self.repo,
+            format!("{}.bean", transaction.year())
         );
 
         let content_response = self.client.get(&url).send()?;
@@ -100,7 +99,7 @@ impl Store for GithubStore {
 
         let update_request = UpdateRequest {
             message: "updated content".to_string(),
-            content: encode(format!("{}\n{}", content, update)),
+            content: encode(format!("{}\n{}", content, transaction.to_beancount())),
             sha: file_content.sha,
         };
 
@@ -111,7 +110,8 @@ impl Store for GithubStore {
             StatusCode::OK | StatusCode::CREATED => {
                 info!(
                     "Successfully created/updated file {} in repo {}.",
-                    self.path, self.repo
+                    transaction.year(),
+                    self.repo
                 );
                 Ok(())
             }
