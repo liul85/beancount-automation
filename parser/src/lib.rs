@@ -92,28 +92,12 @@ impl Parser {
             .map_or("AUD".to_string(), |c| c.as_str().to_string());
 
         let from_account = match caps.name("from") {
-            Some(from) => match self.settings.accounts.get(from.as_str()) {
-                Some(account) => account.to_string(),
-                None => {
-                    return Err(anyhow!(format!(
-                        "account {} doesn't exist in current setting",
-                        from.as_str()
-                    )))
-                }
-            },
+            Some(from) => self.parse_account(from.as_str())?,
             None => return Err(anyhow!("Could not get from_account from input")),
         };
 
         let to_account = match caps.name("to") {
-            Some(to) => match self.settings.accounts.get(to.as_str()) {
-                Some(account) => account.to_string(),
-                None => {
-                    return Err(anyhow!(format!(
-                        "account {} doesn't exist in current setting",
-                        to.as_str()
-                    )))
-                }
-            },
+            Some(to) => self.parse_account(to.as_str())?,
             None => return Err(anyhow!("Could not get to_account from input")),
         };
 
@@ -126,6 +110,16 @@ impl Parser {
             from_account,
             to_account,
         })
+    }
+
+    fn parse_account(&self, matched: &str) -> Result<String> {
+        match self.settings.accounts.get(matched) {
+            Some(account) => Ok(account.to_string()),
+            None => Err(anyhow!(format!(
+                "account {} doesn't exist in current setting",
+                matched
+            ))),
+        }
     }
 }
 
