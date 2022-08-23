@@ -1,5 +1,5 @@
 use anyhow::{anyhow, Result};
-use chrono::Local;
+use chrono::prelude::Local;
 use lazy_static::lazy_static;
 use regex::{Captures, Regex};
 mod settings;
