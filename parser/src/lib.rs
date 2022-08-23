@@ -55,7 +55,7 @@ impl Parser {
         Ok(Self { settings })
     }
 
-    pub fn parse(self, input: &str) -> Result<Transaction> {
+    pub fn parse(&self, input: &str) -> Result<Transaction> {
         if !TRANSACTION_REGEX.is_match(input) {
             return Err(anyhow!("Invalid input format, please follow examples here:\n* 2021-09-08 @KFC hamburger 12.40 AUD Assets:MasterCard:CBA > Expense:Food\n* @KFC hamburger 12.40 AUD Assets:MasterCard:CBA > Expense:Food\n* @Costco lunch 8.97 cba > food\n* @KFL 22.34 cba > food*\n"));
         }
@@ -66,7 +66,7 @@ impl Parser {
         }
     }
 
-    fn parse_caps(self, caps: Captures) -> Result<Transaction> {
+    fn parse_caps(&self, caps: Captures) -> Result<Transaction> {
         let date: String = caps
             .name("date")
             .map_or(Local::now().format("%Y-%m-%d").to_string(), |d| {
@@ -92,20 +92,28 @@ impl Parser {
             .map_or("AUD".to_string(), |c| c.as_str().to_string());
 
         let from_account = match caps.name("from") {
-            Some(account) => self
-                .settings
-                .accounts
-                .get(account.as_str())
-                .map_or(account.as_str().to_string(), |a| a.to_string()),
+            Some(from) => match self.settings.accounts.get(from.as_str()) {
+                Some(account) => account.to_string(),
+                None => {
+                    return Err(anyhow!(format!(
+                        "account {} doesn't exist in current setting",
+                        from.as_str()
+                    )))
+                }
+            },
             None => return Err(anyhow!("Could not get from_account from input")),
         };
 
         let to_account = match caps.name("to") {
-            Some(account) => self
-                .settings
-                .accounts
-                .get(account.as_str())
-                .map_or(account.as_str().to_string(), |a| a.to_string()),
+            Some(to) => match self.settings.accounts.get(to.as_str()) {
+                Some(account) => account.to_string(),
+                None => {
+                    return Err(anyhow!(format!(
+                        "account {} doesn't exist in current setting",
+                        to.as_str()
+                    )))
+                }
+            },
             None => return Err(anyhow!("Could not get to_account from input")),
         };
 
@@ -136,15 +144,14 @@ mod tests {
                 accounts: [
                     ("cba".into(), "Assets:MasterCard:CBA".into()),
                     ("amex".into(), "Liabilities:CreditCard:AMEX:Liang".into()),
-                    ("food".into(), "Expenses:Food".into()),
+                    ("food".into(), "Expense:Food".into()),
                 ]
                 .iter()
                 .cloned()
                 .collect(),
             },
         };
-        let result = parser
-            .parse("2021-09-08 @KFC hamburger 12.40 AUD Assets:MasterCard:CBA > Expense:Food");
+        let result = parser.parse("2021-09-08 @KFC hamburger 12.40 AUD cba > food");
         assert!(result.is_ok());
         let transaction = result.unwrap();
         assert_eq!(transaction.year(), "2021");
@@ -160,15 +167,14 @@ mod tests {
                 accounts: [
                     ("cba".into(), "Assets:MasterCard:CBA".into()),
                     ("amex".into(), "Liabilities:CreditCard:AMEX:Liang".into()),
-                    ("food".into(), "Expenses:Food".into()),
+                    ("food".into(), "Expense:Food".into()),
                 ]
                 .iter()
                 .cloned()
                 .collect(),
             },
         };
-        let result = parser
-            .parse("2021-09-08    @KFC    hamburger   12.40   AUD   Assets:MasterCard:CBA   >   Expense:Food  ");
+        let result = parser.parse("2021-09-08    @KFC    hamburger   12.40   AUD   cba >   food");
         assert!(result.is_ok());
         let transaction = result.unwrap();
         assert_eq!(transaction.year(), "2021");
@@ -183,14 +189,14 @@ mod tests {
                 accounts: [
                     ("cba".into(), "Assets:MasterCard:CBA".into()),
                     ("amex".into(), "Liabilities:CreditCard:AMEX:Liang".into()),
-                    ("food".into(), "Expenses:Food".into()),
+                    ("food".into(), "Expense:Food".into()),
                 ]
                 .iter()
                 .cloned()
                 .collect(),
             },
         };
-        let result = parser.parse("@KFC hamburger 12.40 AUD Assets:MasterCard:CBA > Expense:Food");
+        let result = parser.parse("@KFC hamburger 12.40 AUD cba > food");
         assert!(result.is_ok());
         let transaction = result.unwrap();
         assert!(DATE_RE.is_match(&transaction.date));
@@ -311,6 +317,34 @@ mod tests {
     }
 
     #[test]
+    fn parser_return_error_for_invalid_input() {
+        let parser = Parser {
+            settings: Settings {
+                currency: "AUD".into(),
+                accounts: [
+                    ("cba".into(), "Assets:MasterCard:CBA".into()),
+                    ("amex".into(), "Liabilities:CreditCard:AMEX:Liang".into()),
+                    ("food".into(), "Expenses:Food".into()),
+                ]
+                .iter()
+                .cloned()
+                .collect(),
+            },
+        };
+
+        let result = parser.parse("I am testing here");
+        assert!(result.is_err());
+
+        let result = parser
+            .parse("2021-09-08 @KFC hamburger 12.40 AUDE Assets:MasterCard:CBA > Expense:Food");
+        assert!(result.is_err());
+
+        let result = parser
+            .parse("2021-09-08 KFC hamburger 12.40 AUDE Assets:MasterCard:CBA > Expense:Food");
+        assert!(result.is_err());
+    }
+
+    #[test]
     fn parser_return_error_if_pay_account_not_exist() {
         let parser = Parser {
             settings: Settings {
@@ -326,7 +360,7 @@ mod tests {
             },
         };
 
-        let result = parser.parse("2022-08-14 @MelbourneZoo 33.7 33.7 > home");
+        let result = parser.parse("2022-08-14 @MelbourneZoo 33.7 abc > home");
         assert!(result.is_err());
     }
 }
