@@ -22,6 +22,12 @@ pub struct Transaction {
     to_account: String,
 }
 
+impl Transaction {
+    pub fn year(&self) -> String {
+        self.date.split('-').next().unwrap().into()
+    }
+}
+
 impl From<Transaction> for String {
     fn from(transaction: Transaction) -> Self {
         format!(
@@ -141,6 +147,7 @@ mod tests {
             .parse("2021-09-08 @KFC hamburger 12.40 AUD Assets:MasterCard:CBA > Expense:Food");
         assert!(result.is_ok());
         let transaction = result.unwrap();
+        assert_eq!(transaction.year(), "2021");
         let actual_text: String = transaction.into();
         assert_eq!("2021-09-08 * \"KFC\" \"hamburger\"\n  Assets:MasterCard:CBA        -12.40 AUD\n  Expense:Food        12.40 AUD\n", actual_text);
     }
@@ -164,6 +171,7 @@ mod tests {
             .parse("2021-09-08    @KFC    hamburger   12.40   AUD   Assets:MasterCard:CBA   >   Expense:Food  ");
         assert!(result.is_ok());
         let transaction = result.unwrap();
+        assert_eq!(transaction.year(), "2021");
         let actual_text: String = transaction.into();
         assert_eq!("2021-09-08 * \"KFC\" \"hamburger\"\n  Assets:MasterCard:CBA        -12.40 AUD\n  Expense:Food        12.40 AUD\n", actual_text);
     }
