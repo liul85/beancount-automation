@@ -7,7 +7,7 @@ use settings::Settings;
 
 lazy_static! {
     static ref TRANSACTION_REGEX: Regex =
-        Regex::new(r"((?P<date>\d{4}-\d{2}-\d{2})\s+)?@(?P<payee>\w+)\s+((?P<narration>\w+)\s+)?(?P<amount>\d+\.\d+)(\s+(?P<currency>[A-Z]{3}))?\s+(?P<from>[a-zA-Z:]+)\s*>\s*(?P<to>[a-zA-Z:]+)")
+        Regex::new(r"((?P<date>\d{4}-\d{2}-\d{2})\s+)?@(?P<payee>\w+)\s+((?P<narration>\w+)\s+)?(?P<amount>\d+(\.\d+)?)(\s+(?P<currency>[A-Z]{3}))?\s+(?P<from>[a-zA-Z:]+)\s*>\s*(?P<to>[a-zA-Z:]+)")
             .unwrap();
 }
 
@@ -175,6 +175,7 @@ mod tests {
         let actual_text: String = transaction.into();
         assert_eq!("2021-09-08 * \"KFC\" \"hamburger\"\n  Assets:MasterCard:CBA        -12.40 AUD\n  Expense:Food        12.40 AUD\n", actual_text);
     }
+
     #[test]
     fn parser_can_parse_input_without_date() {
         let parser = Parser {
@@ -197,6 +198,33 @@ mod tests {
         assert_eq!(transaction.payee, "KFC");
         assert_eq!(transaction.narration, "hamburger");
         assert_eq!(transaction.amount, 12.40);
+        assert_eq!(transaction.currency, "AUD");
+        assert_eq!(transaction.from_account, "Assets:MasterCard:CBA");
+        assert_eq!(transaction.to_account, "Expense:Food");
+    }
+
+    #[test]
+    fn parser_can_parse_amount_in_integer() {
+        let parser = Parser {
+            settings: Settings {
+                currency: "AUD".into(),
+                accounts: [
+                    ("cba".into(), "Assets:MasterCard:CBA".into()),
+                    ("amex".into(), "Liabilities:CreditCard:AMEX:Liang".into()),
+                    ("food".into(), "Expense:Food".into()),
+                ]
+                .iter()
+                .cloned()
+                .collect(),
+            },
+        };
+        let result = parser.parse("@KFC hamburger 12 AUD cba > food");
+        assert!(result.is_ok());
+        let transaction = result.unwrap();
+        assert!(DATE_RE.is_match(&transaction.date));
+        assert_eq!(transaction.payee, "KFC");
+        assert_eq!(transaction.narration, "hamburger");
+        assert_eq!(transaction.amount, 12.0);
         assert_eq!(transaction.currency, "AUD");
         assert_eq!(transaction.from_account, "Assets:MasterCard:CBA");
         assert_eq!(transaction.to_account, "Expense:Food");
