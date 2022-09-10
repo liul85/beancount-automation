@@ -7,7 +7,7 @@ use settings::Settings;
 
 lazy_static! {
     static ref TRANSACTION_REGEX: Regex =
-        Regex::new(r"((?P<date>\d{4}-\d{2}-\d{2})\s+)?@(?P<payee>\w+)\s+((?P<narration>\w+)\s+)?(?P<amount>\d+(\.\d+)?)(\s+(?P<currency>[A-Z]{3}))?\s+(?P<from>[a-zA-Z:]+)\s*>\s*(?P<to>[a-zA-Z:]+)")
+        Regex::new(r"((?P<date>\d{4}-\d{2}-\d{2})\s+)?@(?P<payee>\w+)\s+((?P<narration>\w+(\s\w+){0,})\s+)?(?P<amount>\d+(\.\d+)?)(\s+(?P<currency>[A-Z]{3}))?\s+(?P<from>[a-zA-Z:]+)\s*>\s*(?P<to>[a-zA-Z:]+)")
             .unwrap();
 }
 
@@ -384,5 +384,32 @@ mod tests {
 
         let result = parser.parse("2022-08-14 @MelbourneZoo 33.7 abc > home");
         assert!(result.is_err());
+    }
+
+    #[test]
+    fn parser_can_parse_multi_words_narration() {
+        let parser = Parser {
+            settings: Settings {
+                currency: "AUD".into(),
+                accounts: [
+                    ("cba".into(), "Assets:MasterCard:CBA".into()),
+                    ("amex".into(), "Liabilities:CreditCard:AMEX:Liang".into()),
+                    ("food".into(), "Expense:Food".into()),
+                ]
+                .iter()
+                .cloned()
+                .collect(),
+            },
+        };
+        let result = parser.parse("@KFC beef hamburger and french fries 12 AUD cba > food");
+        assert!(result.is_ok());
+        let transaction = result.unwrap();
+        assert!(DATE_RE.is_match(&transaction.date));
+        assert_eq!(transaction.payee, "KFC");
+        assert_eq!(transaction.narration, "beef hamburger and french fries");
+        assert_eq!(transaction.amount, 12.0);
+        assert_eq!(transaction.currency, "AUD");
+        assert_eq!(transaction.from_account, "Assets:MasterCard:CBA");
+        assert_eq!(transaction.to_account, "Expense:Food");
     }
 }
