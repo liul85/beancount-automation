@@ -85,7 +85,9 @@ impl Store for GithubStore {
         match content_response.status() {
             StatusCode::OK => (),
             StatusCode::NOT_FOUND => {
-                self.create_file(path)?;
+                info!("file {} not found, will create the file", path);
+                self.create_file(path.as_str())?;
+                info!("new file {} created.", path);
                 content_response = self.client.get(&url).send()?;
             }
             _ => {
@@ -133,7 +135,7 @@ impl Store for GithubStore {
 }
 
 impl GithubStore {
-    fn create_file(&self, path: String) -> Result<()> {
+    fn create_file(&self, path: &str) -> Result<()> {
         let url = format!(
             "https://api.github.com/repos/{}/{}/contents/{}",
             self.owner, self.repo, path
@@ -141,7 +143,7 @@ impl GithubStore {
         let mut body = HashMap::new();
         body.insert("message", format!("created file {}", path));
         body.insert("content", "".into());
-        let response = self.client.post(&url).json(&body).send()?;
+        let response = self.client.put(&url).json(&body).send()?;
         match response.status() {
             StatusCode::CREATED | StatusCode::OK => Ok(()),
             _ => {
