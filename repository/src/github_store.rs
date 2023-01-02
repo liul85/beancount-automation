@@ -5,7 +5,7 @@ use log::{error, info};
 use parser::Transaction;
 use reqwest::{blocking::Client, header, StatusCode};
 use serde::{Deserialize, Serialize};
-use std::env;
+use std::{collections::HashMap, env};
 
 pub struct GithubStore {
     owner: String,
@@ -75,16 +75,19 @@ impl GithubStore {
 
 impl Store for GithubStore {
     fn save(&self, transaction: Transaction) -> Result<String> {
+        let path = format!("{}.bean", transaction.year());
         let url = format!(
             "https://api.github.com/repos/{}/{}/contents/{}",
-            self.owner,
-            self.repo,
-            format!("{}.bean", transaction.year())
+            self.owner, self.repo, path
         );
 
-        let content_response = self.client.get(&url).send()?;
+        let mut content_response = self.client.get(&url).send()?;
         match content_response.status() {
             StatusCode::OK => (),
+            StatusCode::NOT_FOUND => {
+                self.create_file(path)?;
+                content_response = self.client.get(&url).send()?;
+            }
             _ => {
                 error!("Failed to get file!");
                 error!("Response status was {}", content_response.status());
@@ -94,7 +97,7 @@ impl Store for GithubStore {
         };
 
         let file_content: FileContent = content_response.json()?;
-        let decoded_value = decode(&file_content.content.replace("\n", ""))?;
+        let decoded_value = decode(&file_content.content.replace('\n', ""))?;
         let content = String::from_utf8_lossy(&decoded_value);
         let transaction_year = transaction.year();
         let transaction_text = String::from(transaction);
@@ -124,6 +127,31 @@ impl Store for GithubStore {
                 );
                 error!("github api response body was {}", response.text()?);
                 Err(anyhow!("Failed to save transaction!"))
+            }
+        }
+    }
+}
+
+impl GithubStore {
+    fn create_file(&self, path: String) -> Result<()> {
+        let url = format!(
+            "https://api.github.com/repos/{}/{}/contents/{}",
+            self.owner, self.repo, path
+        );
+        let mut body = HashMap::new();
+        body.insert("message", format!("created file {}", path));
+        body.insert("content", "".into());
+        let response = self.client.post(&url).json(&body).send()?;
+        match response.status() {
+            StatusCode::CREATED | StatusCode::OK => Ok(()),
+            _ => {
+                error!("Failed to create new file {}", path);
+                error!(
+                    "github api response status code was [{}]",
+                    response.status()
+                );
+                error!("github api response body was {}", response.text()?);
+                Err(anyhow!("Failed to create new file {}", path))
             }
         }
     }
