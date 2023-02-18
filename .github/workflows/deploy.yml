@@ -13,7 +13,7 @@ jobs:
       - name: bot-message test
         run: cd bot-message && cargo test
       - name: parser test
-        run: cd parser && cargo test
+        run: cd beancount && cargo test
       - name: repository test
         run: cd repository && cargo test
   deploy:
