@@ -1,0 +1,9 @@
+WHITESPACE = _{ " " }
+date = { (ASCII_DIGIT{4} ~ "-" ~ ASCII_DIGIT{2} ~ "-" ~ ASCII_DIGIT{2}) }
+payee = @{ "@" ~ ASCII_ALPHA+ }
+narration = { (ASCII_ALPHA+)? }
+amount = @{ ASCII_DIGIT+ ~ ( "." ~ ASCII_DIGIT+ )? }
+currency = { (ASCII_ALPHA_UPPER{3}) }
+from_account = @{ ASCII_ALPHA+ }
+to_account = @{ ASCII_ALPHA+ }
+transaction = { SOI ~ date? ~ payee ~ narration ~ amount ~ currency? ~ from_account ~ ">" ~ to_account ~ EOI }

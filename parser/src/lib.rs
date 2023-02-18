@@ -1,15 +1,17 @@
+extern crate pest;
+#[macro_use]
+extern crate pest_derive;
+
 use anyhow::{anyhow, Result};
 use chrono::prelude::Local;
-use lazy_static::lazy_static;
-use regex::{Captures, Regex};
+
 mod settings;
+use pest::Parser;
 use settings::Settings;
 
-lazy_static! {
-    static ref TRANSACTION_REGEX: Regex =
-        Regex::new(r"((?P<date>\d{4}-\d{2}-\d{2})\s+)?@(?P<payee>\w+)\s+((?P<narration>\w+(\s\w+){0,})\s+)?(?P<amount>\d+(\.\d+)?)(\s+(?P<currency>[A-Z]{3}))?\s+(?P<from>[a-zA-Z:]+)\s*>\s*(?P<to>[a-zA-Z:]+)")
-            .unwrap();
-}
+#[derive(Parser)]
+#[grammar = "transaction.pest"]
+pub struct TransactionParser;
 
 #[derive(Debug)]
 pub struct Transaction {
@@ -20,6 +22,20 @@ pub struct Transaction {
     currency: String,
     from_account: String,
     to_account: String,
+}
+
+impl Default for Transaction {
+    fn default() -> Self {
+        Transaction {
+            date: Local::now().format("%Y-%m-%d").to_string(),
+            payee: String::default(),
+            narration: String::default(),
+            amount: 0.0,
+            currency: "AUD".to_string(),
+            from_account: String::default(),
+            to_account: String::default(),
+        }
+    }
 }
 
 impl Transaction {
@@ -45,71 +61,40 @@ impl From<Transaction> for String {
     }
 }
 
-pub struct Parser {
+pub struct BeancountParser {
     settings: Settings,
 }
 
-impl Parser {
+impl BeancountParser {
     pub fn new() -> Result<Self> {
         let settings = Settings::new()?;
         Ok(Self { settings })
     }
 
     pub fn parse(&self, input: &str) -> Result<Transaction> {
-        if !TRANSACTION_REGEX.is_match(input) {
-            return Err(anyhow!("Invalid input format, please follow examples here:\n* 2021-09-08 @KFC hamburger 12.40 AUD Assets:MasterCard:CBA > Expense:Food\n* @KFC hamburger 12.40 AUD Assets:MasterCard:CBA > Expense:Food\n* @Costco lunch 8.97 cba > food\n* @KFL 22.34 cba > food*\n"));
+        if let Some(pairs) = TransactionParser::parse(Rule::transaction, input)?.next() {
+            let mut transaction = Transaction::default();
+            for pair in pairs.into_inner() {
+                match pair.as_rule() {
+                    Rule::date => transaction.date = pair.as_str().into(),
+                    Rule::payee => transaction.payee = pair.as_str().trim_matches('@').into(),
+                    Rule::narration => transaction.narration = pair.as_str().into(),
+                    Rule::amount => transaction.amount = pair.as_str().parse::<f32>()?,
+                    Rule::currency => transaction.currency = pair.as_str().into(),
+                    Rule::from_account => {
+                        transaction.from_account = self.parse_account(pair.as_str())?
+                    }
+                    Rule::to_account => {
+                        transaction.to_account = self.parse_account(pair.as_str())?
+                    }
+                    Rule::EOI => break,
+                    _ => unreachable!("Unexpected rule {:?}", pair.as_rule()),
+                }
+            }
+            return Ok(transaction);
         }
 
-        match TRANSACTION_REGEX.captures(input) {
-            None => Err(anyhow!("Invalid input.")),
-            Some(caps) => self.parse_caps(caps),
-        }
-    }
-
-    fn parse_caps(&self, caps: Captures) -> Result<Transaction> {
-        let date: String = caps
-            .name("date")
-            .map_or(Local::now().format("%Y-%m-%d").to_string(), |d| {
-                d.as_str().to_string()
-            });
-
-        let payee = match caps.name("payee") {
-            Some(payee) => payee.as_str().to_string(),
-            None => return Err(anyhow!("Could not get payee from input")),
-        };
-
-        let narration = caps
-            .name("narration")
-            .map_or("".to_string(), |n| n.as_str().to_string());
-
-        let amount = match caps.name("amount") {
-            Some(amount) => amount.as_str().parse::<f32>()?,
-            None => return Err(anyhow!("Could not get amount from input")),
-        };
-
-        let currency = caps
-            .name("currency")
-            .map_or("AUD".to_string(), |c| c.as_str().to_string());
-
-        let from_account = match caps.name("from") {
-            Some(from) => self.parse_account(from.as_str())?,
-            None => return Err(anyhow!("Could not get from_account from input")),
-        };
-
-        let to_account = match caps.name("to") {
-            Some(to) => self.parse_account(to.as_str())?,
-            None => return Err(anyhow!("Could not get to_account from input")),
-        };
-
-        Ok(Transaction {
-            date,
-            payee,
-            narration,
-            amount,
-            currency,
-            from_account,
-            to_account,
-        })
+        Err(anyhow!("Invalid input"))
     }
 
     fn parse_account(&self, matched: &str) -> Result<String> {
@@ -126,13 +111,16 @@ impl Parser {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use lazy_static::lazy_static;
+    use regex::Regex;
+
     lazy_static! {
         static ref DATE_RE: Regex = Regex::new("^\\d{4}-\\d{2}-\\d{2}$").unwrap();
     }
 
     #[test]
     fn parser_can_parse_standard_input_date_payee_narration_amount_currency_from_to() {
-        let parser = Parser {
+        let parser = BeancountParser {
             settings: Settings {
                 currency: "AUD".into(),
                 accounts: [
@@ -155,7 +143,7 @@ mod tests {
 
     #[test]
     fn parser_can_parse_standard_input_with_multi_space_in_between() {
-        let parser = Parser {
+        let parser = BeancountParser {
             settings: Settings {
                 currency: "AUD".into(),
                 accounts: [
@@ -178,7 +166,7 @@ mod tests {
 
     #[test]
     fn parser_can_parse_input_without_date() {
-        let parser = Parser {
+        let parser = BeancountParser {
             settings: Settings {
                 currency: "AUD".into(),
                 accounts: [
@@ -205,7 +193,7 @@ mod tests {
 
     #[test]
     fn parser_can_parse_amount_in_integer() {
-        let parser = Parser {
+        let parser = BeancountParser {
             settings: Settings {
                 currency: "AUD".into(),
                 accounts: [
@@ -232,7 +220,7 @@ mod tests {
 
     #[test]
     fn parser_support_input_without_space_before_right_arrow() {
-        let parser = Parser {
+        let parser = BeancountParser {
             settings: Settings {
                 currency: "AUD".into(),
                 accounts: [
@@ -259,7 +247,7 @@ mod tests {
 
     #[test]
     fn parser_can_parse_input_in_payee_amount_from_account_to_account_format() {
-        let parser = Parser {
+        let parser = BeancountParser {
             settings: Settings {
                 currency: "AUD".into(),
                 accounts: [
@@ -286,7 +274,7 @@ mod tests {
 
     #[test]
     fn parser_can_parse_input_in_payee_amount_currency_from_account_to_account_format() {
-        let parser = Parser {
+        let parser = BeancountParser {
             settings: Settings {
                 currency: "AUD".into(),
                 accounts: [
@@ -313,7 +301,7 @@ mod tests {
 
     #[test]
     fn parser_can_parse_input_in_date_amount_payee_from_account_to_account_format() {
-        let parser = Parser {
+        let parser = BeancountParser {
             settings: Settings {
                 currency: "AUD".into(),
                 accounts: [
@@ -340,7 +328,7 @@ mod tests {
 
     #[test]
     fn parser_return_error_for_invalid_input() {
-        let parser = Parser {
+        let parser = BeancountParser {
             settings: Settings {
                 currency: "AUD".into(),
                 accounts: [
@@ -368,7 +356,7 @@ mod tests {
 
     #[test]
     fn parser_return_error_if_pay_account_not_exist() {
-        let parser = Parser {
+        let parser = BeancountParser {
             settings: Settings {
                 currency: "AUD".into(),
                 accounts: [
@@ -388,7 +376,7 @@ mod tests {
 
     #[test]
     fn parser_can_parse_multi_words_narration() {
-        let parser = Parser {
+        let parser = BeancountParser {
             settings: Settings {
                 currency: "AUD".into(),
                 accounts: [

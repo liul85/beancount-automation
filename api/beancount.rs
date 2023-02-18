@@ -2,7 +2,7 @@ use anyhow::Result;
 use bot_message::telegram::{ResponseBody, Update};
 use http::StatusCode;
 use log::{error, info, warn};
-use parser::Parser;
+use parser::BeancountParser;
 use repository::github_store::GithubStore;
 use repository::Store;
 use vercel_lambda::{error::VercelError, lambda, IntoResponse, Request, Response};
@@ -43,7 +43,7 @@ fn handler(request: Request) -> Result<impl IntoResponse, VercelError> {
         },
     };
 
-    let parser = Parser::new().map_err(|e| VercelError::new(e.to_string().as_str()))?;
+    let parser = BeancountParser::new().map_err(|e| VercelError::new(e.to_string().as_str()))?;
 
     let ok_response = |text| {
         let response_body = ResponseBody {
