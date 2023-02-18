@@ -1,7 +1,7 @@
 use crate::Store;
 use anyhow::{anyhow, Result};
 use base64::{decode, encode};
-use beancount::parser::Transaction;
+use beancount_core::parser::Transaction;
 use log::{error, info};
 use reqwest::{blocking::Client, header, StatusCode};
 use serde::{Deserialize, Serialize};

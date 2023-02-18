@@ -1,6 +1,5 @@
 use anyhow::Result;
-use beancount::parser::BeancountParser;
-use beancount::settings::Settings;
+use beancount_core::{parser::BeancountParser, settings::Settings};
 use bot_message::telegram::{ResponseBody, Update};
 use http::StatusCode;
 use log::{error, info, warn};
@@ -68,7 +67,7 @@ fn handler(request: Request) -> Result<impl IntoResponse, VercelError> {
             error!("Failed to parse input: {}", e.to_string());
             return ok_response(format!(
                 "⚠️\n==============================\nFailed to parse input: {}",
-                e.to_string()
+                e
             ));
         }
     };

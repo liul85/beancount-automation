@@ -37,7 +37,7 @@ name = "api"
 version = "0.1.0"
 dependencies = [
  "anyhow",
- "beancount",
+ "beancount_core",
  "bot_message",
  "env_logger",
  "http 0.1.21",
@@ -101,7 +101,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "904dfeac50f3cdaba28fc6f57fdcddb75f49ed61346676a78c4ffe55877802fd"
 
 [[package]]
-name = "beancount"
+name = "beancount_core"
 version = "0.1.0"
 dependencies = [
  "anyhow",
@@ -1377,7 +1377,7 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "base64 0.13.0",
- "beancount",
+ "beancount_core",
  "chrono",
  "log",
  "reqwest",
