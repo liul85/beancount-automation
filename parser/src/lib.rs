@@ -5,7 +5,7 @@ extern crate pest_derive;
 use anyhow::{anyhow, Result};
 use chrono::prelude::Local;
 
-mod settings;
+pub mod settings;
 use pest::Parser;
 use settings::Settings;
 
@@ -66,9 +66,8 @@ pub struct BeancountParser {
 }
 
 impl BeancountParser {
-    pub fn new() -> Result<Self> {
-        let settings = Settings::new()?;
-        Ok(Self { settings })
+    pub fn new(settings: Settings) -> Self {
+        Self { settings }
     }
 
     pub fn parse(&self, input: &str) -> Result<Transaction> {
@@ -118,21 +117,23 @@ mod tests {
         static ref DATE_RE: Regex = Regex::new("^\\d{4}-\\d{2}-\\d{2}$").unwrap();
     }
 
+    fn create_parser() -> BeancountParser {
+        let accounts = [
+            ("cba".into(), "Assets:MasterCard:CBA".into()),
+            ("amex".into(), "Liabilities:CreditCard:AMEX:Liang".into()),
+            ("food".into(), "Expense:Food".into()),
+        ]
+        .iter()
+        .cloned()
+        .collect();
+        let settings = Settings::new("AUD".into(), accounts);
+
+        BeancountParser::new(settings)
+    }
+
     #[test]
     fn parser_can_parse_standard_input_date_payee_narration_amount_currency_from_to() {
-        let parser = BeancountParser {
-            settings: Settings {
-                currency: "AUD".into(),
-                accounts: [
-                    ("cba".into(), "Assets:MasterCard:CBA".into()),
-                    ("amex".into(), "Liabilities:CreditCard:AMEX:Liang".into()),
-                    ("food".into(), "Expense:Food".into()),
-                ]
-                .iter()
-                .cloned()
-                .collect(),
-            },
-        };
+        let parser = create_parser();
         let result = parser.parse("2021-09-08 @KFC hamburger 12.40 AUD cba > food");
         assert!(result.is_ok());
         let transaction = result.unwrap();
@@ -143,19 +144,7 @@ mod tests {
 
     #[test]
     fn parser_can_parse_standard_input_with_multi_space_in_between() {
-        let parser = BeancountParser {
-            settings: Settings {
-                currency: "AUD".into(),
-                accounts: [
-                    ("cba".into(), "Assets:MasterCard:CBA".into()),
-                    ("amex".into(), "Liabilities:CreditCard:AMEX:Liang".into()),
-                    ("food".into(), "Expense:Food".into()),
-                ]
-                .iter()
-                .cloned()
-                .collect(),
-            },
-        };
+        let parser = create_parser();
         let result = parser.parse("2021-09-08    @KFC    hamburger   12.40   AUD   cba >   food");
         assert!(result.is_ok());
         let transaction = result.unwrap();
@@ -166,19 +155,7 @@ mod tests {
 
     #[test]
     fn parser_can_parse_input_without_date() {
-        let parser = BeancountParser {
-            settings: Settings {
-                currency: "AUD".into(),
-                accounts: [
-                    ("cba".into(), "Assets:MasterCard:CBA".into()),
-                    ("amex".into(), "Liabilities:CreditCard:AMEX:Liang".into()),
-                    ("food".into(), "Expense:Food".into()),
-                ]
-                .iter()
-                .cloned()
-                .collect(),
-            },
-        };
+        let parser = create_parser();
         let result = parser.parse("@KFC hamburger 12.40 AUD cba > food");
         assert!(result.is_ok());
         let transaction = result.unwrap();
@@ -193,19 +170,7 @@ mod tests {
 
     #[test]
     fn parser_can_parse_amount_in_integer() {
-        let parser = BeancountParser {
-            settings: Settings {
-                currency: "AUD".into(),
-                accounts: [
-                    ("cba".into(), "Assets:MasterCard:CBA".into()),
-                    ("amex".into(), "Liabilities:CreditCard:AMEX:Liang".into()),
-                    ("food".into(), "Expense:Food".into()),
-                ]
-                .iter()
-                .cloned()
-                .collect(),
-            },
-        };
+        let parser = create_parser();
         let result = parser.parse("@KFC hamburger 12 AUD cba > food");
         assert!(result.is_ok());
         let transaction = result.unwrap();
@@ -220,19 +185,7 @@ mod tests {
 
     #[test]
     fn parser_support_input_without_space_before_right_arrow() {
-        let parser = BeancountParser {
-            settings: Settings {
-                currency: "AUD".into(),
-                accounts: [
-                    ("cba".into(), "Assets:MasterCard:CBA".into()),
-                    ("amex".into(), "Liabilities:CreditCard:AMEX:Liang".into()),
-                    ("food".into(), "Expense:Food".into()),
-                ]
-                .iter()
-                .cloned()
-                .collect(),
-            },
-        };
+        let parser = create_parser();
         let result = parser.parse("@Costco lunch 8.97 cba>food");
         assert!(result.is_ok());
         let transaction = result.unwrap();
@@ -247,19 +200,7 @@ mod tests {
 
     #[test]
     fn parser_can_parse_input_in_payee_amount_from_account_to_account_format() {
-        let parser = BeancountParser {
-            settings: Settings {
-                currency: "AUD".into(),
-                accounts: [
-                    ("cba".into(), "Assets:MasterCard:CBA".into()),
-                    ("amex".into(), "Liabilities:CreditCard:AMEX:Liang".into()),
-                    ("food".into(), "Expense:Food".into()),
-                ]
-                .iter()
-                .cloned()
-                .collect(),
-            },
-        };
+        let parser = create_parser();
         let result = parser.parse("@KFL 22.34 cba > food");
         assert!(result.is_ok());
         let transaction = result.unwrap();
@@ -274,19 +215,7 @@ mod tests {
 
     #[test]
     fn parser_can_parse_input_in_payee_amount_currency_from_account_to_account_format() {
-        let parser = BeancountParser {
-            settings: Settings {
-                currency: "AUD".into(),
-                accounts: [
-                    ("cba".into(), "Assets:MasterCard:CBA".into()),
-                    ("amex".into(), "Liabilities:CreditCard:AMEX:Liang".into()),
-                    ("food".into(), "Expenses:Food".into()),
-                ]
-                .iter()
-                .cloned()
-                .collect(),
-            },
-        };
+        let parser = create_parser();
         let result = parser.parse("@KFL 22.34 USD cba > food");
         assert!(result.is_ok());
         let transaction = result.unwrap();
@@ -296,24 +225,12 @@ mod tests {
         assert_eq!(transaction.amount, 22.34);
         assert_eq!(transaction.currency, "USD");
         assert_eq!(transaction.from_account, "Assets:MasterCard:CBA");
-        assert_eq!(transaction.to_account, "Expenses:Food");
+        assert_eq!(transaction.to_account, "Expense:Food");
     }
 
     #[test]
     fn parser_can_parse_input_in_date_amount_payee_from_account_to_account_format() {
-        let parser = BeancountParser {
-            settings: Settings {
-                currency: "AUD".into(),
-                accounts: [
-                    ("cba".into(), "Assets:MasterCard:CBA".into()),
-                    ("amex".into(), "Liabilities:CreditCard:AMEX:Liang".into()),
-                    ("food".into(), "Expenses:Food".into()),
-                ]
-                .iter()
-                .cloned()
-                .collect(),
-            },
-        };
+        let parser = create_parser();
         let result = parser.parse("2021-11-23 @KFL 22.34 cba > food");
         assert!(result.is_ok());
         let transaction = result.unwrap();
@@ -323,25 +240,12 @@ mod tests {
         assert_eq!(transaction.amount, 22.34);
         assert_eq!(transaction.currency, "AUD");
         assert_eq!(transaction.from_account, "Assets:MasterCard:CBA");
-        assert_eq!(transaction.to_account, "Expenses:Food");
+        assert_eq!(transaction.to_account, "Expense:Food");
     }
 
     #[test]
     fn parser_return_error_for_invalid_input() {
-        let parser = BeancountParser {
-            settings: Settings {
-                currency: "AUD".into(),
-                accounts: [
-                    ("cba".into(), "Assets:MasterCard:CBA".into()),
-                    ("amex".into(), "Liabilities:CreditCard:AMEX:Liang".into()),
-                    ("food".into(), "Expenses:Food".into()),
-                ]
-                .iter()
-                .cloned()
-                .collect(),
-            },
-        };
-
+        let parser = create_parser();
         let result = parser.parse("I am testing here");
         assert!(result.is_err());
 
@@ -356,39 +260,14 @@ mod tests {
 
     #[test]
     fn parser_return_error_if_pay_account_not_exist() {
-        let parser = BeancountParser {
-            settings: Settings {
-                currency: "AUD".into(),
-                accounts: [
-                    ("cba".into(), "Assets:MasterCard:CBA".into()),
-                    ("amex".into(), "Liabilities:CreditCard:AMEX:Liang".into()),
-                    ("food".into(), "Expenses:Food".into()),
-                ]
-                .iter()
-                .cloned()
-                .collect(),
-            },
-        };
-
+        let parser = create_parser();
         let result = parser.parse("2022-08-14 @MelbourneZoo 33.7 abc > home");
         assert!(result.is_err());
     }
 
     #[test]
     fn parser_can_parse_multi_words_narration() {
-        let parser = BeancountParser {
-            settings: Settings {
-                currency: "AUD".into(),
-                accounts: [
-                    ("cba".into(), "Assets:MasterCard:CBA".into()),
-                    ("amex".into(), "Liabilities:CreditCard:AMEX:Liang".into()),
-                    ("food".into(), "Expense:Food".into()),
-                ]
-                .iter()
-                .cloned()
-                .collect(),
-            },
-        };
+        let parser = create_parser();
         let result = parser.parse("@KFC beef hamburger and french fries 12 AUD cba > food");
         assert!(result.is_ok());
         let transaction = result.unwrap();

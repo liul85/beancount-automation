@@ -11,7 +11,7 @@ pub struct Settings {
 }
 
 impl Settings {
-    pub fn new() -> Result<Self> {
+    pub fn load_from_env() -> Result<Self> {
         let mut s = Config::default();
         let config = match env::var("CONFIG") {
             Ok(v) => v,
@@ -20,5 +20,9 @@ impl Settings {
 
         s.merge(File::from_str(config.as_str(), FileFormat::Toml))?;
         s.try_into().map_err(|e| e.into())
+    }
+
+    pub fn new(currency: String, accounts: HashMap<String, String>) -> Self {
+        Self { currency, accounts }
     }
 }
