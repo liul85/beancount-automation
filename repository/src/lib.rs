@@ -1,5 +1,5 @@
 use anyhow::Result;
-use parser::Transaction;
+use beancount::parser::Transaction;
 
 pub mod github_store;
 

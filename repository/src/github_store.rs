@@ -1,8 +1,8 @@
 use crate::Store;
 use anyhow::{anyhow, Result};
 use base64::{decode, encode};
+use beancount::parser::Transaction;
 use log::{error, info};
-use parser::Transaction;
 use reqwest::{blocking::Client, header, StatusCode};
 use serde::{Deserialize, Serialize};
 use std::{collections::HashMap, env};

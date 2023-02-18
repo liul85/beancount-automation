@@ -33,6 +33,21 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "62e1f47f7dc0422027a4e370dd4548d4d66b26782e513e98dca1e689e058a80e"
 
 [[package]]
+name = "api"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "beancount",
+ "bot_message",
+ "env_logger",
+ "http 0.1.21",
+ "log",
+ "repository",
+ "serde_json",
+ "vercel_lambda",
+]
+
+[[package]]
 name = "arrayvec"
 version = "0.5.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -90,14 +105,13 @@ name = "beancount"
 version = "0.1.0"
 dependencies = [
  "anyhow",
- "bot_message",
- "env_logger",
- "http 0.1.21",
- "log",
- "parser",
- "repository",
- "serde_json",
- "vercel_lambda",
+ "chrono",
+ "config",
+ "lazy_static",
+ "pest",
+ "pest_derive",
+ "regex",
+ "serde 1.0.130",
 ]
 
 [[package]]
@@ -1167,20 +1181,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "parser"
-version = "0.1.0"
-dependencies = [
- "anyhow",
- "chrono",
- "config",
- "lazy_static",
- "pest",
- "pest_derive",
- "regex",
- "serde 1.0.130",
-]
-
-[[package]]
 name = "percent-encoding"
 version = "2.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1377,9 +1377,9 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "base64 0.13.0",
+ "beancount",
  "chrono",
  "log",
- "parser",
  "reqwest",
  "serde 1.0.130",
  "serde_json",
